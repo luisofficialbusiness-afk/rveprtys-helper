@@ -95,7 +95,7 @@ module.exports = {
                         { name: '💵 Final Cash Winners', value: finalCashDesc, inline: true },
                         { name: '🏦 Final Bank Winners', value: finalBankDesc, inline: true }
                     )
-                    .setFooter({ text: 'NRG Economy • Season 2 Final Results' })
+                    .setFooter({ text: 'UBG Economy • Season 2 Final Results' })
                     .setTimestamp();
 
                 await interaction.editReply({ embeds: [endEmbed] });
