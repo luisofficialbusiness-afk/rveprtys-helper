@@ -23,7 +23,7 @@ module.exports = {
         }
 
 
-        const amount = Math.floor(Math.random() * 200) + 50;
+        const amount = Math.floor(Math.random() * 76) + 25;
 
         user.balance += amount;
         user.lastWork = now;
