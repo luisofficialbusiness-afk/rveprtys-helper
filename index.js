@@ -758,6 +758,38 @@ client.on('messageCreate', async message => {
         return message.reply('Bank set.');
     }
 
+    if (cmd === 'ostockfix') {
+    if (message.author.id !== OWNER_ID) return;
+
+    const stocks = await Stock.find();
+    const results = [];
+
+    for (const stock of stocks) {
+        const oldPrice = stock.price;
+        const change = 1 + (Math.random() * 0.06 - 0.03);
+        const newPrice = Math.max(0.01, parseFloat((stock.price * change).toFixed(2)));
+        stock.history.push(newPrice);
+        if (stock.history.length > 30) stock.history.shift();
+        stock.price = newPrice;
+        await stock.save();
+
+        const diff = newPrice - oldPrice;
+        const pct = ((diff / oldPrice) * 100).toFixed(2);
+        const arrow = diff > 0 ? '🟢' : diff < 0 ? '🔴' : '⚪';
+        results.push(`${arrow} \`${stock.ticker}\` $${oldPrice.toFixed(2)} → $${newPrice.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`);
+    }
+
+    return message.reply({
+        embeds: [new EmbedBuilder()
+            .setTitle('📈 Stock Market Manually Ticked')
+            .setDescription(results.join('\n'))
+            .setColor(0x00FF99)
+            .setFooter({ text: 'Same logic as the 30-minute auto tick' })
+            .setTimestamp()]
+    });
+}
+
+    
     if (cmd === 'oresetleaderboard' || cmd === 'oreset') {
         if (message.author.id !== OWNER_ID) return;
         await User.updateMany({}, { balance: 0, bank: 0 });
