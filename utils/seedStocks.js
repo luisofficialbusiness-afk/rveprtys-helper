@@ -16,8 +16,9 @@ const companies = [
     { ticker: 'VOID', name: 'Void Network Corp',      price: 5.55   },
     { ticker: 'HDR',  name: 'Hydra Network Corp',     price: 88.88  },
     { ticker: 'NRGX', name: 'NRG Exchange',           price: 500.00 },
-    { ticker: 'PLSM', name: 'Plasma Dynamics Inc',    price: 63.75  },
-    { ticker: 'ZRTH', name: 'Zeroth Systems',         price: 112.00 },
+    { ticker: 'T9OS', name: 'T9 Technologies',    price: 63.75  },
+    { ticker: 'CLSR', name: 'Classroom Inc',         price: 112.00 },
+    { ticker: 'NIKE', name: 'Nike Hub Sports',         price: 100.00 },
 ];
 
 async function seed() {
