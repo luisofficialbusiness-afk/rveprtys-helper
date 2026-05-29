@@ -8,26 +8,40 @@ const {
     TextInputBuilder,
     TextInputStyle,
     ActionRowBuilder,
-    EmbedBuilder
+    EmbedBuilder,
+    ButtonBuilder,
+    ButtonStyle
 } = require('discord.js');
 
 const fs = require('fs');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
 const Stock = require('./models/Stock');
-const User = require('./models/User');
 const Portfolio = require('./models/Portfolio');
+const User = require('./models/User');
 const { getUser } = require('./utils/economy');
 
 const jackpotLeaderboard = new Map();
 const PREFIX = '?';
+const OWNER_ID = '1453078748080504996';
+
+const workCooldowns = new Map();
+const coinflipCooldowns = new Map();
+const diceCooldowns = new Map();
+const slotsCooldowns = new Map();
+const robCooldowns = new Map();
+
+const symbols = ['🍒', '🍋', '🍉', '⭐', '💎', '🍀'];
+
+function applyPriceImpact(price, shares, direction) {
+    const impact = 1 + (direction * 0.002 * shares);
+    const noise = 1 + (Math.random() * 0.02 - 0.01);
+    return Math.max(0.01, parseFloat((price * impact * noise).toFixed(2)));
+}
 
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("MongoDB connected"))
-    .catch(err => {
-        console.error(err);
-        process.exit(1);
-    });
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => { console.error(err); process.exit(1); });
 
 const client = new Client({
     intents: [
@@ -67,70 +81,276 @@ client.on('messageCreate', async message => {
     if (!message.content.startsWith(PREFIX)) return;
 
     const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
-    const commandName = args.shift().toLowerCase();
+    const cmd = args.shift().toLowerCase();
+    const now = Date.now();
+
+    // ?balance / ?bal
+    if (cmd === 'balance' || cmd === 'bal') {
+        const user = await getUser(message.author.id, message.guild.id);
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle(`💰 ${message.author.username}'s Balance`)
+                .addFields(
+                    { name: '💵 Wallet', value: `$${user.balance}`, inline: true },
+                    { name: '🏦 Bank', value: `$${user.bank}`, inline: true }
+                )
+                .setColor(0x2b2d31)]
+        });
+    }
 
     // ?work
-    if (commandName === 'work') {
+    if (cmd === 'work') {
         const COOLDOWN = 5 * 60 * 1000;
         const user = await getUser(message.author.id, message.guild.id);
-        const now = Date.now();
-
         if (user.lastWork && now - user.lastWork < COOLDOWN) {
             const timeLeft = ((COOLDOWN - (now - user.lastWork)) / 1000).toFixed(1);
             return message.reply(`⏳ You need to wait **${timeLeft}s** before working again.`);
         }
-
         const amount = Math.floor(Math.random() * 76) + 25;
         user.balance += amount;
         user.lastWork = now;
         await user.save();
-
-        const embed = new EmbedBuilder()
-            .setTitle('💼 Work Complete')
-            .setDescription(`You earned **$${amount}**`)
-            .setColor(0x00ff00);
-        return message.reply({ embeds: [embed] });
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('💼 Work Complete')
+                .setDescription(`You earned **$${amount}**`)
+                .setColor(0x00ff00)]
+        });
     }
 
-    // ?balance
-    if (commandName === 'balance' || commandName === 'bal') {
-        const user = await getUser(message.author.id, message.guild.id);
-        const embed = new EmbedBuilder()
-            .setTitle(`💰 ${message.author.username}'s Balance`)
-            .addFields(
-                { name: '💵 Wallet', value: `$${user.balance}`, inline: true },
-                { name: '🏦 Bank', value: `$${user.bank}`, inline: true }
-            )
-            .setColor(0x2b2d31);
-        return message.reply({ embeds: [embed] });
-    }
-
-    // ?deposit <amount>
-    if (commandName === 'deposit' || commandName === 'dep') {
+    // ?deposit / ?dep <amount|all>
+    if (cmd === 'deposit' || cmd === 'dep') {
         const user = await getUser(message.author.id, message.guild.id);
         const amount = args[0] === 'all' ? user.balance : parseInt(args[0]);
-        if (!amount || amount <= 0) return message.reply('❌ Please enter a valid amount.');
-        if (amount > user.balance) return message.reply('❌ You don\'t have that much cash.');
+        if (!amount || amount <= 0) return message.reply('❌ Usage: `?deposit <amount|all>`');
+        if (user.balance < amount) return message.reply("❌ You don't have enough money in your wallet.");
         user.balance -= amount;
         user.bank += amount;
         await user.save();
-        return message.reply(`✅ Deposited **$${amount}** into your bank.`);
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🏦 Deposit Successful')
+                .setDescription(`Deposited **$${amount}** into your bank.`)
+                .setColor(0x00ff00)]
+        });
     }
 
-    // ?withdraw <amount>
-    if (commandName === 'withdraw' || commandName === 'with') {
+    // ?withdraw / ?with <amount|all>
+    if (cmd === 'withdraw' || cmd === 'with') {
         const user = await getUser(message.author.id, message.guild.id);
         const amount = args[0] === 'all' ? user.bank : parseInt(args[0]);
-        if (!amount || amount <= 0) return message.reply('❌ Please enter a valid amount.');
-        if (amount > user.bank) return message.reply('❌ You don\'t have that much in your bank.');
+        if (!amount || amount <= 0) return message.reply('❌ Usage: `?withdraw <amount|all>`');
+        if (user.bank < amount) return message.reply("❌ You don't have enough money in your bank.");
         user.bank -= amount;
         user.balance += amount;
         await user.save();
-        return message.reply(`✅ Withdrew **$${amount}** from your bank.`);
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🏦 Withdrawal Successful')
+                .setDescription(`Withdrew **$${amount}** from your bank.`)
+                .setColor(0x00ff00)]
+        });
+    }
+
+    // ?givemoney / ?give <@user> <amount>
+    if (cmd === 'givemoney' || cmd === 'give') {
+        const targetId = message.mentions.users.first()?.id;
+        const amount = parseInt(args[1]);
+        if (!targetId || !amount || amount <= 0) return message.reply('❌ Usage: `?give @user <amount>`');
+        const user = await getUser(message.author.id, message.guild.id);
+        const receiver = await getUser(targetId, message.guild.id);
+        if (user.balance < amount) return message.reply('❌ Not enough money.');
+        user.balance -= amount;
+        receiver.balance += amount;
+        await user.save();
+        await receiver.save();
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🤝 Transfer Complete')
+                .setDescription(`You gave **$${amount}** to <@${targetId}>`)
+                .setColor(0x00ff00)]
+        });
+    }
+
+    // ?coinflip / ?cf <bet> <heads|tails>
+    if (cmd === 'coinflip' || cmd === 'cf') {
+        const COOLDOWN = 5 * 60 * 1000;
+        const bet = parseInt(args[0]);
+        const choice = args[1]?.toLowerCase();
+        if (!bet || bet <= 0 || !['heads', 'tails'].includes(choice)) return message.reply('❌ Usage: `?coinflip <bet> <heads|tails>`');
+        if (coinflipCooldowns.has(message.author.id)) {
+            const exp = coinflipCooldowns.get(message.author.id) + COOLDOWN;
+            if (now < exp) return message.reply('⏳ Coinflip cooldown active.');
+        }
+        coinflipCooldowns.set(message.author.id, now);
+        const user = await getUser(message.author.id, message.guild.id);
+        if (user.balance < bet) return message.reply('❌ Not enough balance.');
+        user.balance -= bet;
+        const result = Math.random() < 0.5 ? 'heads' : 'tails';
+        let winnings = 0;
+        let text = `Coin: **${result}**\n`;
+        if (choice === result) { winnings = bet * 2; text += `You won $${winnings}`; }
+        else { text += `You lost $${bet}`; }
+        user.balance += winnings;
+        await user.save();
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🪙 Coinflip')
+                .setDescription(text)
+                .setColor(winnings ? 0x00ff00 : 0xff0000)]
+        });
+    }
+
+    // ?dice <bet>
+    if (cmd === 'dice') {
+        const COOLDOWN = 5 * 60 * 1000;
+        const bet = parseInt(args[0]);
+        if (!bet || bet <= 0) return message.reply('❌ Usage: `?dice <bet>`');
+        if (diceCooldowns.has(message.author.id)) {
+            const exp = diceCooldowns.get(message.author.id) + COOLDOWN;
+            if (now < exp) return message.reply('⏳ Dice cooldown active.');
+        }
+        diceCooldowns.set(message.author.id, now);
+        const user = await getUser(message.author.id, message.guild.id);
+        if (user.balance < bet) return message.reply('❌ Not enough balance.');
+        user.balance -= bet;
+        const userRoll = Math.floor(Math.random() * 6) + 1;
+        const botRoll = Math.floor(Math.random() * 6) + 1;
+        let winnings = 0;
+        let text = `You: **${userRoll}** | Bot: **${botRoll}**\n`;
+        if (userRoll > botRoll) { winnings = bet * 2; text += `You won $${winnings}`; }
+        else if (userRoll === botRoll) { winnings = bet; text += `Tie - refunded`; }
+        else { text += `You lost $${bet}`; }
+        user.balance += winnings;
+        await user.save();
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🎲 Dice')
+                .setDescription(text)
+                .setColor(winnings > bet ? 0x00ff00 : winnings === bet ? 0xffff00 : 0xff0000)]
+        });
+    }
+
+    // ?slots <bet>
+    if (cmd === 'slots') {
+        const COOLDOWN = 5 * 60 * 1000;
+        const bet = parseInt(args[0]);
+        if (!bet || bet <= 0) return message.reply('❌ Usage: `?slots <bet>`');
+        if (slotsCooldowns.has(message.author.id)) {
+            const exp = slotsCooldowns.get(message.author.id) + COOLDOWN;
+            if (now < exp) return message.reply('⏳ Slots cooldown active. Try again later.');
+        }
+        slotsCooldowns.set(message.author.id, now);
+        const user = await getUser(message.author.id, message.guild.id);
+        if (user.balance < bet) return message.reply('❌ Invalid bet.');
+        user.balance -= bet;
+        const spin = [symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)]];
+        let winnings = 0;
+        let text = 'You lost.';
+        if (spin[0] === spin[1] && spin[1] === spin[2]) { winnings = bet * 5; text = `JACKPOT! You won $${winnings}`; }
+        else if (spin[0] === spin[1] || spin[1] === spin[2] || spin[0] === spin[2]) { winnings = bet * 2; text = `You won $${winnings}`; }
+        user.balance += winnings;
+        await user.save();
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🎰 Slots')
+                .setDescription(`${spin.join(' | ')}\n\n${text}`)
+                .setColor(winnings ? 0x00ff00 : 0xff0000)]
+        });
+    }
+
+    // ?rob <@user>
+    if (cmd === 'rob') {
+        const COOLDOWN = 10 * 60 * 1000;
+        const targetId = message.mentions.users.first()?.id;
+        if (!targetId) return message.reply('❌ Usage: `?rob @user`');
+        if (targetId === message.author.id) return message.reply("❌ You can't rob yourself.");
+        if (robCooldowns.has(message.author.id)) {
+            const exp = robCooldowns.get(message.author.id) + COOLDOWN;
+            if (now < exp) return message.reply('⏳ Rob cooldown active.');
+        }
+        robCooldowns.set(message.author.id, now);
+        const user = await getUser(message.author.id, message.guild.id);
+        const victim = await getUser(targetId, message.guild.id);
+        if (victim.balance < 50) return message.reply('❌ Target is too poor to rob.');
+        const victimTotal = victim.balance + victim.bank;
+        if (victimTotal > user.balance * 5) return message.reply('❌ This target is too powerful to rob.');
+        let successChance = 0.6;
+        if (victimTotal > 1000) successChance = 0.5;
+        if (victimTotal > 5000) successChance = 0.4;
+        if (victimTotal > 10000) successChance = 0.3;
+        if (victimTotal > 25000) successChance = 0.2;
+        if (victimTotal > 50000) successChance = 0.1;
+        const success = Math.random() < successChance;
+        if (success) {
+            const amount = Math.floor(Math.min(victim.balance * (0.15 + Math.random() * 0.15), 4000));
+            victim.balance -= amount;
+            user.balance += amount;
+            await user.save(); await victim.save();
+            return message.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('💰 Rob Success')
+                    .setDescription(`You stole **$${amount}** from <@${targetId}>`)
+                    .setFooter({ text: `Success chance: ${Math.round(successChance * 100)}%` })
+                    .setColor(0x00ff00)]
+            });
+        } else {
+            const penalty = Math.floor(Math.max(user.balance * 0.15, 200));
+            user.balance -= penalty;
+            await user.save();
+            return message.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('🚨 Rob Failed')
+                    .setDescription(`You got caught and lost **$${penalty}**`)
+                    .setFooter({ text: `Success chance: ${Math.round(successChance * 100)}%` })
+                    .setColor(0xff0000)]
+            });
+        }
+    }
+
+    // ?duel <@user>
+    if (cmd === 'duel') {
+        const targetUser = message.mentions.users.first();
+        if (!targetUser) return message.reply('❌ Usage: `?duel @user`');
+        if (targetUser.bot) return message.reply("❌ You can't duel bots.");
+        if (targetUser.id === message.author.id) return message.reply("❌ You can't duel yourself.");
+        const participants = [message.author, targetUser];
+        const winner = participants[Math.floor(Math.random() * 2)];
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('⚔️ Duel Result')
+                .setDescription(`🥊 ${message.author.username} vs ${targetUser.username}\n\n🏆 Winner: **${winner.username}**`)
+                .setColor(0x2b2d31)]
+        });
+    }
+
+    // ?leaderboard / ?lb
+    if (cmd === 'leaderboard' || cmd === 'lb') {
+        const users = await User.find({ guildId: message.guild.id }).sort({ balance: -1 }).limit(10);
+        const description = users.map((u, i) => `**${i + 1}.** <@${u.userId}> - $${u.balance}`).join('\n');
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🏆 Leaderboard')
+                .setDescription(description || 'No data yet.')
+                .setColor(0xFFD700)]
+        });
+    }
+
+    // ?bankleaderboard / ?blb
+    if (cmd === 'bankleaderboard' || cmd === 'blb') {
+        const users = await User.find({ guildId: message.guild.id }).sort({ bank: -1 }).limit(10);
+        if (!users.length) return message.reply('No data yet.');
+        const description = users.map((u, i) => `**${i + 1}.** <@${u.userId}> — $${u.bank}`).join('\n');
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🏦 Bank Leaderboard')
+                .setDescription(description)
+                .setColor(0x2b2d31)]
+        });
     }
 
     // ?stocks
-    if (commandName === 'stocks') {
+    if (cmd === 'stocks') {
         const stocks = await Stock.find().sort({ ticker: 1 });
         const rows = stocks.map(s => {
             const prev = s.history.length >= 2 ? s.history[s.history.length - 2] : s.price;
@@ -139,37 +359,31 @@ client.on('messageCreate', async message => {
             const arrow = change > 0 ? '🟢' : change < 0 ? '🔴' : '⚪';
             return `${arrow} \`${s.ticker.padEnd(4)}\` **${s.name}** — $${s.price.toFixed(2)} (${change >= 0 ? '+' : ''}${pct}%)`;
         }).join('\n');
-
-        const embed = new EmbedBuilder()
-            .setTitle('📈 NRG Stock Market')
-            .setDescription(rows)
-            .setColor(0x00FF99)
-            .setFooter({ text: 'Prices update every 30 minutes' })
-            .setTimestamp();
-        return message.reply({ embeds: [embed] });
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('📈 NRG Stock Market')
+                .setDescription(rows)
+                .setColor(0x00FF99)
+                .setFooter({ text: 'Prices update every 30 minutes' })
+                .setTimestamp()]
+        });
     }
 
     // ?buystock <TICKER> <shares>
-    if (commandName === 'buystock') {
+    if (cmd === 'buystock') {
         const ticker = args[0]?.toUpperCase();
         const shares = parseInt(args[1]);
         if (!ticker || !shares || shares <= 0) return message.reply('❌ Usage: `?buystock <TICKER> <shares>`');
-
         const stock = await Stock.findOne({ ticker });
         if (!stock) return message.reply(`❌ Ticker \`${ticker}\` not found.`);
-
         const user = await User.findOne({ userId: message.author.id, guildId: message.guild.id });
         if (!user) return message.reply('❌ You have no economy account.');
-
         const totalCost = parseFloat((stock.price * shares).toFixed(2));
         if (user.balance < totalCost) return message.reply(`❌ You need **$${totalCost.toFixed(2)}** but only have **$${user.balance.toFixed(2)}**.`);
-
         user.balance = parseFloat((user.balance - totalCost).toFixed(2));
         await user.save();
-
         let portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: message.guild.id });
         if (!portfolio) portfolio = new Portfolio({ userId: message.author.id, guildId: message.guild.id, holdings: [] });
-
         const existing = portfolio.holdings.find(h => h.ticker === ticker);
         if (existing) {
             const totalShares = existing.shares + shares;
@@ -179,84 +393,74 @@ client.on('messageCreate', async message => {
             portfolio.holdings.push({ ticker, shares, avgBuyPrice: stock.price });
         }
         await portfolio.save();
-
-        const newPrice = parseFloat((stock.price * (1 + 0.002 * shares) * (1 + (Math.random() * 0.02 - 0.01))).toFixed(2));
+        const newPrice = applyPriceImpact(stock.price, shares, 1);
         stock.history.push(newPrice);
         if (stock.history.length > 30) stock.history.shift();
         stock.price = newPrice;
         stock.totalShares += shares;
         await stock.save();
-
-        const embed = new EmbedBuilder()
-            .setTitle('✅ Stock Purchased')
-            .setColor(0x00FF99)
-            .addFields(
-                { name: 'Stock', value: `${stock.name} (\`${ticker}\`)`, inline: true },
-                { name: 'Shares', value: `${shares}`, inline: true },
-                { name: 'Total Cost', value: `$${totalCost.toFixed(2)}`, inline: true },
-                { name: 'New Price', value: `$${newPrice.toFixed(2)}`, inline: true },
-                { name: 'Cash Remaining', value: `$${user.balance.toFixed(2)}`, inline: true }
-            )
-            .setFooter({ text: 'NRG Stock Market' })
-            .setTimestamp();
-        return message.reply({ embeds: [embed] });
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('✅ Stock Purchased')
+                .setColor(0x00FF99)
+                .addFields(
+                    { name: 'Stock', value: `${stock.name} (\`${ticker}\`)`, inline: true },
+                    { name: 'Shares', value: `${shares}`, inline: true },
+                    { name: 'Total Cost', value: `$${totalCost.toFixed(2)}`, inline: true },
+                    { name: 'New Price', value: `$${newPrice.toFixed(2)}`, inline: true },
+                    { name: 'Cash Remaining', value: `$${user.balance.toFixed(2)}`, inline: true }
+                )
+                .setFooter({ text: 'NRG Stock Market' })
+                .setTimestamp()]
+        });
     }
 
     // ?sellstock <TICKER> <shares>
-    if (commandName === 'sellstock') {
+    if (cmd === 'sellstock') {
         const ticker = args[0]?.toUpperCase();
         const shares = parseInt(args[1]);
         if (!ticker || !shares || shares <= 0) return message.reply('❌ Usage: `?sellstock <TICKER> <shares>`');
-
         const stock = await Stock.findOne({ ticker });
         if (!stock) return message.reply(`❌ Ticker \`${ticker}\` not found.`);
-
         const portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: message.guild.id });
         const holding = portfolio?.holdings.find(h => h.ticker === ticker);
         if (!holding || holding.shares < shares) return message.reply(`❌ You don't have enough shares of \`${ticker}\`.`);
-
         const totalEarned = parseFloat((stock.price * shares).toFixed(2));
         const profit = parseFloat((totalEarned - holding.avgBuyPrice * shares).toFixed(2));
-
         holding.shares -= shares;
         if (holding.shares === 0) portfolio.holdings = portfolio.holdings.filter(h => h.ticker !== ticker);
         await portfolio.save();
-
         const user = await User.findOne({ userId: message.author.id, guildId: message.guild.id });
         user.balance = parseFloat((user.balance + totalEarned).toFixed(2));
         await user.save();
-
-        const newPrice = Math.max(0.01, parseFloat((stock.price * (1 - 0.002 * shares) * (1 + (Math.random() * 0.02 - 0.01))).toFixed(2)));
+        const newPrice = applyPriceImpact(stock.price, shares, -1);
         stock.history.push(newPrice);
         if (stock.history.length > 30) stock.history.shift();
         stock.price = newPrice;
         stock.totalShares = Math.max(0, stock.totalShares - shares);
         await stock.save();
-
-        const embed = new EmbedBuilder()
-            .setTitle('💸 Stock Sold')
-            .setColor(profit >= 0 ? 0x00FF99 : 0xFF4500)
-            .addFields(
-                { name: 'Stock', value: `${stock.name} (\`${ticker}\`)`, inline: true },
-                { name: 'Shares Sold', value: `${shares}`, inline: true },
-                { name: 'Total Earned', value: `$${totalEarned.toFixed(2)}`, inline: true },
-                { name: 'Profit/Loss', value: `${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`, inline: true },
-                { name: 'New Cash Balance', value: `$${user.balance.toFixed(2)}`, inline: true }
-            )
-            .setFooter({ text: 'NRG Stock Market' })
-            .setTimestamp();
-        return message.reply({ embeds: [embed] });
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('💸 Stock Sold')
+                .setColor(profit >= 0 ? 0x00FF99 : 0xFF4500)
+                .addFields(
+                    { name: 'Stock', value: `${stock.name} (\`${ticker}\`)`, inline: true },
+                    { name: 'Shares Sold', value: `${shares}`, inline: true },
+                    { name: 'Total Earned', value: `$${totalEarned.toFixed(2)}`, inline: true },
+                    { name: 'Profit/Loss', value: `${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`, inline: true },
+                    { name: 'New Cash Balance', value: `$${user.balance.toFixed(2)}`, inline: true }
+                )
+                .setFooter({ text: 'NRG Stock Market' })
+                .setTimestamp()]
+        });
     }
 
-    // ?portfolio
-    if (commandName === 'portfolio') {
+    // ?portfolio / ?port
+    if (cmd === 'portfolio' || cmd === 'port') {
         const portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: message.guild.id });
         if (!portfolio || !portfolio.holdings.length) return message.reply('📭 You have no stocks. Use `?buystock` to get started.');
-
-        let totalValue = 0;
-        let totalCost = 0;
+        let totalValue = 0, totalCost = 0;
         const rows = [];
-
         for (const h of portfolio.holdings) {
             const stock = await Stock.findOne({ ticker: h.ticker });
             if (!stock) continue;
@@ -265,55 +469,165 @@ client.on('messageCreate', async message => {
             const profit = currentValue - costBasis;
             totalValue += currentValue;
             totalCost += costBasis;
-            const arrow = profit >= 0 ? '🟢' : '🔴';
-            rows.push(`${arrow} \`${h.ticker}\` x${h.shares} — $${currentValue.toFixed(2)} (${profit >= 0 ? '+' : ''}$${profit.toFixed(2)})`);
+            rows.push(`${profit >= 0 ? '🟢' : '🔴'} \`${h.ticker}\` x${h.shares} — $${currentValue.toFixed(2)} (${profit >= 0 ? '+' : ''}$${profit.toFixed(2)})`);
         }
-
         const totalProfit = totalValue - totalCost;
-        const embed = new EmbedBuilder()
-            .setTitle(`📊 ${message.author.username}'s Portfolio`)
-            .setDescription(rows.join('\n'))
-            .setColor(totalProfit >= 0 ? 0x00FF99 : 0xFF4500)
-            .addFields(
-                { name: 'Total Value', value: `$${totalValue.toFixed(2)}`, inline: true },
-                { name: 'Total Profit/Loss', value: `${totalProfit >= 0 ? '+' : ''}$${totalProfit.toFixed(2)}`, inline: true }
-            )
-            .setFooter({ text: 'NRG Stock Market' })
-            .setTimestamp();
-        return message.reply({ embeds: [embed] });
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle(`📊 ${message.author.username}'s Portfolio`)
+                .setDescription(rows.join('\n'))
+                .setColor(totalProfit >= 0 ? 0x00FF99 : 0xFF4500)
+                .addFields(
+                    { name: 'Total Value', value: `$${totalValue.toFixed(2)}`, inline: true },
+                    { name: 'Total Profit/Loss', value: `${totalProfit >= 0 ? '+' : ''}$${totalProfit.toFixed(2)}`, inline: true }
+                )
+                .setFooter({ text: 'NRG Stock Market' })
+                .setTimestamp()]
+        });
     }
 
-    // ?stockhistory <TICKER>
-    if (commandName === 'stockhistory') {
+    // ?stockhistory / ?sh <TICKER>
+    if (cmd === 'stockhistory' || cmd === 'sh') {
         const ticker = args[0]?.toUpperCase();
         if (!ticker) return message.reply('❌ Usage: `?stockhistory <TICKER>`');
-
         const stock = await Stock.findOne({ ticker });
         if (!stock) return message.reply(`❌ Ticker \`${ticker}\` not found.`);
-
         const history = stock.history.slice(-10);
         const chart = history.map((p, i) => {
             const prev = history[i - 1] ?? p;
             const arrow = p > prev ? '📈' : p < prev ? '📉' : '➡️';
             return `${arrow} $${p.toFixed(2)}`;
         }).join('\n');
-
-        const first = history[0];
-        const last = history[history.length - 1];
+        const first = history[0], last = history[history.length - 1];
         const overallChange = last - first;
         const overallPct = ((overallChange / first) * 100).toFixed(2);
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle(`📋 ${stock.name} (\`${ticker}\`) — Price History`)
+                .setDescription(chart || 'No history yet.')
+                .setColor(overallChange >= 0 ? 0x00FF99 : 0xFF4500)
+                .addFields(
+                    { name: 'Current Price', value: `$${stock.price.toFixed(2)}`, inline: true },
+                    { name: 'Overall Change', value: `${overallChange >= 0 ? '+' : ''}${overallPct}%`, inline: true }
+                )
+                .setFooter({ text: 'Last 10 price points • NRG Stock Market' })
+                .setTimestamp()]
+        });
+    }
 
-        const embed = new EmbedBuilder()
-            .setTitle(`📋 ${stock.name} (\`${ticker}\`) — Price History`)
-            .setDescription(chart || 'No history yet.')
-            .setColor(overallChange >= 0 ? 0x00FF99 : 0xFF4500)
-            .addFields(
-                { name: 'Current Price', value: `$${stock.price.toFixed(2)}`, inline: true },
-                { name: 'Overall Change', value: `${overallChange >= 0 ? '+' : ''}${overallPct}%`, inline: true }
-            )
-            .setFooter({ text: 'Last 10 price points • NRG Stock Market' })
-            .setTimestamp();
-        return message.reply({ embeds: [embed] });
+    // OWNER ONLY COMMANDS
+    if (cmd === 'ogive') {
+        if (message.author.id !== OWNER_ID) return;
+        const targetId = message.mentions.users.first()?.id;
+        const amount = parseInt(args[1]);
+        if (!targetId || !amount) return message.reply('❌ Usage: `?ogive @user <amount>`');
+        const user = await getUser(targetId, message.guild.id);
+        user.balance += amount;
+        await user.save();
+        return message.reply(`Gave $${amount} to <@${targetId}>`);
+    }
+
+    if (cmd === 'osetbalance' || cmd === 'osetbal') {
+        if (message.author.id !== OWNER_ID) return;
+        const targetId = message.mentions.users.first()?.id;
+        const amount = parseInt(args[1]);
+        if (!targetId || amount === undefined) return message.reply('❌ Usage: `?osetbalance @user <amount>`');
+        const user = await getUser(targetId, message.guild.id);
+        user.balance = amount;
+        await user.save();
+        return message.reply('Balance set.');
+    }
+
+    if (cmd === 'osetbank') {
+        if (message.author.id !== OWNER_ID) return;
+        const targetId = message.mentions.users.first()?.id;
+        const amount = parseInt(args[1]);
+        if (!targetId || amount === undefined) return message.reply('❌ Usage: `?osetbank @user <amount>`');
+        const user = await getUser(targetId, message.guild.id);
+        user.bank = amount;
+        await user.save();
+        return message.reply('Bank set.');
+    }
+
+    if (cmd === 'oresetleaderboard' || cmd === 'oreset') {
+        if (message.author.id !== OWNER_ID) return;
+        await User.updateMany({}, { balance: 0, bank: 0 });
+        return message.reply('Leaderboard reset.');
+    }
+
+    if (cmd === 'oeconomystats' || cmd === 'ostats') {
+        if (message.author.id !== OWNER_ID) return;
+        const users = await User.find({ guildId: message.guild.id });
+        const totalMoney = users.reduce((a, b) => a + b.balance + b.bank, 0);
+        const richest = users.sort((a, b) => (b.balance + b.bank) - (a.balance + a.bank))[0];
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('📊 Economy Stats')
+                .addFields(
+                    { name: 'Users', value: `${users.length}` },
+                    { name: 'Total Money', value: `$${totalMoney}` },
+                    { name: 'Richest', value: richest ? `<@${richest.userId}>` : 'None' }
+                )]
+        });
+    }
+
+    if (cmd === 'ouserinfo') {
+        if (message.author.id !== OWNER_ID) return;
+        const targetId = message.mentions.users.first()?.id;
+        if (!targetId) return message.reply('❌ Usage: `?ouserinfo @user`');
+        const user = await getUser(targetId, message.guild.id);
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('👤 User Info')
+                .addFields(
+                    { name: 'Balance', value: `${user.balance}` },
+                    { name: 'Bank', value: `${user.bank}` }
+                )]
+        });
+    }
+
+    if (cmd === 'ojackpotdrop') {
+        if (message.author.id !== OWNER_ID) return;
+        const amount = parseInt(args[0]);
+        if (!amount) return message.reply('❌ Usage: `?ojackpotdrop <amount>`');
+        const users = await User.find({ guildId: message.guild.id });
+        if (!users.length) return message.reply('No users found.');
+        const winner = users[Math.floor(Math.random() * users.length)];
+        winner.balance += amount;
+        await winner.save();
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('💰 Jackpot Drop')
+                .setDescription(`<@${winner.userId}> won $${amount}`)
+                .setColor(0x00ff00)]
+        });
+    }
+
+    if (cmd === 'clearcooldowns') {
+        if (message.author.id !== OWNER_ID) return;
+        workCooldowns.clear();
+        coinflipCooldowns.clear();
+        diceCooldowns.clear();
+        slotsCooldowns.clear();
+        robCooldowns.clear();
+        return message.reply('Cooldowns cleared.');
+    }
+
+    // ?help
+    if (cmd === 'help') {
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('📖 NRG Bot — Prefix Commands')
+                .setColor(0x2b2d31)
+                .addFields(
+                    { name: '💰 Economy', value: '`?balance` `?deposit` `?withdraw` `?givemoney` `?work`', inline: false },
+                    { name: '🎰 Gambling', value: '`?coinflip <bet> <heads|tails>` `?dice <bet>` `?slots <bet>` `?rob @user` `?duel @user`', inline: false },
+                    { name: '📈 Stocks', value: '`?stocks` `?buystock <TICKER> <shares>` `?sellstock <TICKER> <shares>` `?portfolio` `?stockhistory <TICKER>`', inline: false },
+                    { name: '🏆 Leaderboards', value: '`?leaderboard` `?bankleaderboard`', inline: false },
+                    { name: '👑 Owner Only', value: '`?ogive` `?osetbalance` `?osetbank` `?oresetleaderboard` `?oeconomystats` `?ouserinfo` `?ojackpotdrop` `?clearcooldowns`', inline: false }
+                )
+                .setFooter({ text: 'NRG Economy Bot' })]
+        });
     }
 });
 
@@ -325,31 +639,14 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isButton()) {
-
         if (interaction.customId === 'open_order_modal') {
             const modal = new ModalBuilder()
                 .setCustomId('order_modal')
                 .setTitle('Order Form');
-
             modal.addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('website_ip')
-                        .setLabel('Website IP')
-                        .setStyle(TextInputStyle.Short)
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('website_name')
-                        .setLabel('Website Name')
-                        .setStyle(TextInputStyle.Short)
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('filters')
-                        .setLabel('List of Filter Links you want')
-                        .setStyle(TextInputStyle.Paragraph)
-                )
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('website_ip').setLabel('Website IP').setStyle(TextInputStyle.Short)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('website_name').setLabel('Website Name').setStyle(TextInputStyle.Short)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('filters').setLabel('List of Filter Links you want').setStyle(TextInputStyle.Paragraph))
             );
             return interaction.showModal(modal);
         }
@@ -358,74 +655,49 @@ client.on('interactionCreate', async interaction => {
             const userId = interaction.customId.split('_')[1];
             const modal = new ModalBuilder()
                 .setCustomId(`response_modal_${userId}`)
-                .setTitle(`Send Links`);
-
+                .setTitle('Send Links');
             modal.addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('links')
-                        .setLabel('Insert Links here')
-                        .setStyle(TextInputStyle.Paragraph)
-                )
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('links').setLabel('Insert Links here').setStyle(TextInputStyle.Paragraph))
             );
             return interaction.showModal(modal);
         }
     }
 
     if (interaction.isModalSubmit()) {
-
         if (interaction.customId === 'order_modal') {
             const ip = interaction.fields.getTextInputValue('website_ip');
             const name = interaction.fields.getTextInputValue('website_name');
             const filters = interaction.fields.getTextInputValue('filters');
             const userId = interaction.user.id;
-
-            await interaction.user.send("Your order has been received. You will get your links soon.");
-
+            await interaction.user.send('Your order has been received. You will get your links soon.');
             const embed = {
-                title: `New Order`,
+                title: 'New Order',
                 fields: [
-                    { name: "User", value: `<@${userId}>` },
-                    { name: "Website IP", value: ip },
-                    { name: "Website Name", value: name },
-                    { name: "Filters", value: filters }
+                    { name: 'User', value: `<@${userId}>` },
+                    { name: 'Website IP', value: ip },
+                    { name: 'Website Name', value: name },
+                    { name: 'Filters', value: filters }
                 ],
                 color: 0x2b2d31
             };
-
-            const components = [
-                {
-                    type: 1,
-                    components: [
-                        {
-                            type: 2,
-                            label: "Send Links",
-                            style: 1,
-                            custom_id: `respond_${userId}`
-                        }
-                    ]
-                }
-            ];
-
+            const components = [{ type: 1, components: [{ type: 2, label: 'Send Links', style: 1, custom_id: `respond_${userId}` }] }];
             await fetch(process.env.WEBHOOK_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ embeds: [embed], components: components })
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ embeds: [embed], components })
             });
-
-            return interaction.reply({ content: "Order submitted! Check your DMs.", ephemeral: true });
+            return interaction.reply({ content: 'Order submitted! Check your DMs.', ephemeral: true });
         }
 
         if (interaction.customId.startsWith('response_modal_')) {
             const userId = interaction.customId.split('_')[2];
             const links = interaction.fields.getTextInputValue('links');
-
             try {
                 const user = await client.users.fetch(userId);
                 await user.send(`📦 Your Order is Ready!\n\n${links}`);
-                return interaction.reply({ content: "Links sent to user.", ephemeral: true });
+                return interaction.reply({ content: 'Links sent to user.', ephemeral: true });
             } catch (err) {
-                return interaction.reply({ content: "Failed to DM user.", ephemeral: true });
+                return interaction.reply({ content: 'Failed to DM user.', ephemeral: true });
             }
         }
     }
