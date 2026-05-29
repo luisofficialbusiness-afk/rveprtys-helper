@@ -717,7 +717,11 @@ client.on('messageCreate', async message => {
                 new ButtonBuilder()
                     .setCustomId(`slave_check_${slave.userId}`)
                     .setLabel('📊 Refresh Stats')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId(`slave_takepay_${slave.userId}`)
+                    .setLabel('💰 Take Payment')
+                    .setStyle(ButtonStyle.Primary)
             );
 
             await message.channel.send({ embeds: [embed], components: [row] });
@@ -968,6 +972,27 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
+        if (interaction.customId.startsWith('slave_takepay_')) {
+            const targetId = interaction.customId.split('_')[2];
+            const slave = await Slave.findOne({ userId: targetId, guildId: interaction.guild.id });
+            if (!slave || slave.ownerId !== interaction.user.id) return interaction.reply({ content: '❌ Not your slave.', ephemeral: true });
+
+            const modal = new ModalBuilder()
+                .setCustomId(`takepay_modal_${targetId}`)
+                .setTitle('Take Payment from Slave');
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('takepay_amount')
+                        .setLabel(`Amount to take (Debt: $${slave.debt.toFixed(2)})`)
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('e.g. 500')
+                        .setRequired(true)
+                )
+            );
+            return interaction.showModal(modal);
+        }
+
         if (interaction.customId === 'open_order_modal') {
             const modal = new ModalBuilder()
                 .setCustomId('order_modal')
@@ -993,6 +1018,85 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isModalSubmit()) {
+        if (interaction.customId.startsWith('takepay_modal_')) {
+            const targetId = interaction.customId.split('_')[2];
+            const amount = parseFloat(interaction.fields.getTextInputValue('takepay_amount'));
+
+            if (!amount || isNaN(amount) || amount <= 0) {
+                return interaction.reply({ content: '❌ Invalid amount.', ephemeral: true });
+            }
+
+            const slave = await Slave.findOne({ userId: targetId, guildId: interaction.guild.id });
+            if (!slave || slave.ownerId !== interaction.user.id) {
+                return interaction.reply({ content: '❌ Not your slave.', ephemeral: true });
+            }
+
+            const slaveUser = await getUser(targetId, interaction.guild.id);
+            if (slaveUser.balance < amount) {
+                return interaction.reply({
+                    content: `❌ <@${targetId}> only has **$${slaveUser.balance.toFixed(2)}** in their wallet.`,
+                    ephemeral: true
+                });
+            }
+
+            const taken = parseFloat(Math.min(amount, slave.debt).toFixed(2));
+            slaveUser.balance = parseFloat((slaveUser.balance - taken).toFixed(2));
+            await slaveUser.save();
+
+            slave.debt = parseFloat((slave.debt - taken).toFixed(2));
+
+            if (slave.debt <= 0) {
+                slave.ownerId = null;
+                slave.debt = 0;
+                await slave.save();
+
+                await interaction.reply({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('✅ Debt Fully Paid!')
+                        .setDescription(`You took **$${taken.toFixed(2)}** from <@${targetId}>'s wallet — their debt is now cleared and they are free.`)
+                        .setColor(0x00FF99)]
+                });
+
+                try {
+                    const freedUser = await client.users.fetch(targetId);
+                    await freedUser.send({
+                        embeds: [new EmbedBuilder()
+                            .setTitle('🕊️ You Are Free!')
+                            .setDescription(`<@${interaction.user.id}> took **$${taken.toFixed(2)}** from your wallet to cover your remaining debt. You are now free.`)
+                            .setColor(0x00FF99)]
+                    });
+                } catch {}
+            } else {
+                await slave.save();
+
+                await interaction.reply({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('💰 Payment Taken')
+                        .setDescription(`Took **$${taken.toFixed(2)}** from <@${targetId}>'s wallet.`)
+                        .addFields(
+                            { name: '💸 Debt Remaining', value: `$${slave.debt.toFixed(2)}`, inline: true },
+                            { name: '🏦 Their Remaining Balance', value: `$${slaveUser.balance.toFixed(2)}`, inline: true }
+                        )
+                        .setColor(0xFF4500)]
+                });
+
+                try {
+                    const slaveDiscordUser = await client.users.fetch(targetId);
+                    await slaveDiscordUser.send({
+                        embeds: [new EmbedBuilder()
+                            .setTitle('💸 Payment Taken')
+                            .setDescription(`<@${interaction.user.id}> took **$${taken.toFixed(2)}** from your wallet toward your debt.`)
+                            .addFields(
+                                { name: '💸 Debt Remaining', value: `$${slave.debt.toFixed(2)}`, inline: true },
+                                { name: '🏦 Your Remaining Balance', value: `$${slaveUser.balance.toFixed(2)}`, inline: true }
+                            )
+                            .setColor(0xFF4500)
+                            .setFooter({ text: 'Keep working to pay off your debt!' })]
+                    });
+                } catch {}
+            }
+        }
+
         if (interaction.customId === 'order_modal') {
             const ip = interaction.fields.getTextInputValue('website_ip');
             const name = interaction.fields.getTextInputValue('website_name');
