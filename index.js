@@ -911,12 +911,31 @@ client.on('interactionCreate', async interaction => {
             const targetId = interaction.customId.split('_')[2];
             const slave = await Slave.findOne({ userId: targetId, guildId: interaction.guild.id });
             if (!slave || slave.ownerId !== interaction.user.id) return interaction.reply({ content: '❌ Not your slave.', ephemeral: true });
+
+            const renewCost = parseFloat((slave.debt / 2).toFixed(2));
+            const owner = await getUser(interaction.user.id, interaction.guild.id);
+
+            if (owner.balance < renewCost) {
+                return interaction.reply({
+                    content: `❌ You need **$${renewCost.toFixed(2)}** (half of current debt) to renew but only have **$${owner.balance.toFixed(2)}**.`,
+                    ephemeral: true
+                });
+            }
+
+            owner.balance = parseFloat((owner.balance - renewCost).toFixed(2));
+            await owner.save();
+
+            const oldDebt = slave.debt;
             slave.debt = parseFloat((slave.debt * 2).toFixed(2));
             await slave.save();
+
             await interaction.reply({
                 embeds: [new EmbedBuilder()
                     .setTitle('🔄 Debt Renewed')
-                    .setDescription(`<@${targetId}>'s debt has been doubled to **$${slave.debt.toFixed(2)}**.`)
+                    .setDescription(
+                        `You paid **$${renewCost.toFixed(2)}** to renew <@${targetId}>'s contract.\n\n` +
+                        `Their debt went from **$${oldDebt.toFixed(2)}** → **$${slave.debt.toFixed(2)}**.`
+                    )
                     .setColor(0xFF4500)]
             });
             try {
@@ -924,7 +943,7 @@ client.on('interactionCreate', async interaction => {
                 await user.send({
                     embeds: [new EmbedBuilder()
                         .setTitle('⛓️ Your Debt Has Been Renewed!')
-                        .setDescription(`Your owner has doubled your debt. You now owe **$${slave.debt.toFixed(2)}**.`)
+                        .setDescription(`Your owner paid to extend your contract. Your debt has doubled to **$${slave.debt.toFixed(2)}**.`)
                         .setColor(0xFF4500)]
                 });
             } catch {}
