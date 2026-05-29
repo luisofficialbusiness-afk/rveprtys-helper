@@ -19,7 +19,8 @@ const companies = [
     { ticker: 'T9OS', name: 'T9 Technologies',    price: 63.75  },
     { ticker: 'CLSR', name: 'Classroom Inc',         price: 112.00 },
     { ticker: 'NIKE', name: 'Nike Hub Sports',         price: 100.00 },
-    { ticker: 'FERN', name: 'Fern Real Estate Inc',         price: 100.00 },
+    { ticker: 'FERN', name: 'Fern Real Estate Inc',         price: 69.00 },
+    { ticker: 'MBLI', name: 'Nebuli Laboratory',         price: 125.50 },
 ];
 
 async function seed() {
