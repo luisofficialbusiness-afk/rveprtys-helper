@@ -18,7 +18,8 @@ module.exports = {
     async execute(interaction) {
 
 
-        if (interaction.user.id !== process.env.OWNER_ID) {
+        const OWNER_ID = process.env.OWNER_ID ?? '1453078748080504996';
+        if (interaction.user.id !== OWNER_ID) {
             return interaction.reply({
                 content: "You are not allowed to use this command.",
                 ephemeral: true

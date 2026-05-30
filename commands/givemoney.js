@@ -23,6 +23,10 @@ module.exports = {
         const user = await getUser(interaction.user.id, interaction.guild.id);
         const receiver = await getUser(target.id, interaction.guild.id);
 
+        if (target.id === interaction.user.id) {
+            return interaction.reply({ content: "❌ You cannot give money to yourself.", ephemeral: true });
+        }
+
         if (amount <= 0) {
             return interaction.reply({ content: "❌ Invalid amount.", ephemeral: true });
         }

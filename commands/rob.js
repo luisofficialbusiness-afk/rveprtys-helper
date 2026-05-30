@@ -24,7 +24,10 @@ module.exports = {
         if (cooldowns.has(interaction.user.id)) {
             const expiration = cooldowns.get(interaction.user.id) + COOLDOWN;
             if (now < expiration) {
-                return interaction.reply({ content: `⏳ Cooldown active.`, ephemeral: true });
+                const left = expiration - now;
+                const m = Math.floor(left / 60000);
+                const s = Math.ceil((left % 60000) / 1000);
+                return interaction.reply({ content: `⏳ Cooldown active. Try again in **${m > 0 ? `${m}m ${s}s` : `${s}s`}**.`, ephemeral: true });
             }
         }
 
