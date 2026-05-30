@@ -20,7 +20,7 @@ const companies = [
     { ticker: 'CLSR', name: 'Classroom Inc',         price: 112.00 },
     { ticker: 'NIKE', name: 'Nike Hub Sports',         price: 100.00 },
     { ticker: 'FERN', name: 'Fern Real Estate Inc',         price: 69.00 },
-    { ticker: 'MBLI', name: 'Nebuli Laboratory',         price: 125.50 },
+    { ticker: 'NBLI', name: 'Nebuli Laboratory',         price: 125.50 },
 ];
 
 async function seed() {
