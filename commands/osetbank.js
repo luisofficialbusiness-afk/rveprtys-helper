@@ -1,34 +1,27 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { getUser } = require('../utils/economy');
 
-const OWNER_ID = "1453078748080504996";
+const OWNER_ID = '1453078748080504996';
+const isAdmin  = i => i.user.id === OWNER_ID || !!i.member?.permissions?.has('Administrator');
+const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('osetbank')
-        .setDescription('Owner: set bank')
-        .addUserOption(o =>
-            o.setName('user')
-                .setDescription('User to edit bank')
-                .setRequired(true)
-        )
-        .addIntegerOption(o =>
-            o.setName('amount')
-                .setDescription('New bank amount')
-                .setRequired(true)
-        ),
+        .setDescription("Admin: set a user's bank balance")
+        .addUserOption(o => o.setName('user').setDescription('User').setRequired(true))
+        .addNumberOption(o => o.setName('amount').setDescription('New bank balance').setRequired(true)),
 
     async execute(interaction) {
-        if (interaction.user.id !== OWNER_ID) return;
+        if (!isAdmin(interaction)) return interaction.reply({ content: '❌ Admin only.', ephemeral: true });
 
         const target = interaction.options.getUser('user');
-        const amount = interaction.options.getInteger('amount');
+        const amount = interaction.options.getNumber('amount');
 
         const user = await getUser(target.id, interaction.guild.id);
         user.bank = amount;
-
         await user.save();
 
-        interaction.reply({ content: 'Bank set.', ephemeral: true });
+        return interaction.reply({ content: `✅ Set <@${target.id}>'s bank to **$${fmt(amount)}**`, ephemeral: true });
     }
 };

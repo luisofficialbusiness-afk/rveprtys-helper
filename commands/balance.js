@@ -1,6 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUser } = require('../utils/economy');
 
+const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('balance')
@@ -9,14 +11,12 @@ module.exports = {
     async execute(interaction) {
         const user = await getUser(interaction.user.id, interaction.guild.id);
 
-        const embed = new EmbedBuilder()
-            .setTitle(`💰 ${interaction.user.username}'s Balance`)
+        return interaction.reply({ embeds: [new EmbedBuilder()
+            .setTitle(`${interaction.user.username}'s Balance`)
             .addFields(
-                { name: "💵 Wallet", value: `${user.balance}`, inline: true },
-                { name: "🏦 Bank", value: `${user.bank}`, inline: true }
+                { name: 'Wallet', value: `$${fmt(user.balance)}`, inline: true },
+                { name: 'Bank',   value: `$${fmt(user.bank)}`,    inline: true }
             )
-            .setColor(0x2b2d31);
-
-        await interaction.reply({ embeds: [embed] });
+            .setColor(0x2b2d31)] });
     }
 };
