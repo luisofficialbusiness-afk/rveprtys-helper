@@ -79,7 +79,74 @@ client.once('ready', () => {
     }, 30 * 60 * 1000);
 });
 
-client.on('messageCreate', async message => {
+client.on('guildCreate', async guild => {
+    console.log(`Joined new guild: ${guild.name} (${guild.id})`);
+
+    const companies = [
+        { ticker: 'VLR',  name: 'Velera Inc',           price: 142.50 },
+        { ticker: 'FRGS', name: "Frogiee's Arcade",      price: 34.20  },
+        { ticker: 'DOGE', name: 'Doge UB',               price: 0.85   },
+        { ticker: 'CHRI', name: 'Cherri Inc',             price: 58.00  },
+        { ticker: 'TGLC', name: 'TGLSC Corp',             price: 210.00 },
+        { ticker: 'GNMT', name: 'Gn Math',               price: 76.40  },
+        { ticker: 'CNOS', name: 'Cine OS',               price: 99.99  },
+        { ticker: 'OVCL', name: 'Overcloaked Corp',       price: 185.30 },
+        { ticker: 'TRFL', name: 'Truffled Inc',           price: 47.60  },
+        { ticker: 'LNR',  name: 'LUNAR Research Inc',     price: 320.00 },
+        { ticker: 'VOID', name: 'Void Network Corp',      price: 5.55   },
+        { ticker: 'HDR',  name: 'Hydra Network Corp',     price: 88.88  },
+        { ticker: 'NRGX', name: 'NRG Exchange',           price: 500.00 },
+        { ticker: 'PLSM', name: 'Plasma Dynamics Inc',    price: 63.75  },
+        { ticker: 'ZRTH', name: 'Zeroth Systems',         price: 112.00 },
+    ];
+
+    try {
+        for (const c of companies) {
+            await Stock.findOneAndUpdate(
+                { guildId: guild.id, ticker: c.ticker },
+                { guildId: guild.id, ...c, history: [c.price], totalShares: 0 },
+                { upsert: true, new: true }
+            );
+        }
+        console.log(`Seeded stocks for ${guild.name}`);
+    } catch (e) {
+        console.error(`Failed to seed stocks for ${guild.name}:`, e);
+    }
+
+    const welcomeEmbed = new EmbedBuilder()
+        .setTitle('💣 Economic Bomb has arrived!')
+        .setDescription(
+            `Thanks for adding **Economic Bomb** to your server!\n\n` +
+            `The stock market has been automatically set up with **15 companies**.\n\n` +
+            `**Getting started:**\n` +
+            `> \`?help\` — view all commands\n` +
+            `> \`?stocks\` — view the stock market\n` +
+            `> \`?work\` — start earning money\n` +
+            `> \`?daily\` — claim your daily reward\n\n` +
+            `**Admin commands:**\n` +
+            `> \`?setupmarket\` — re-seed the stock market anytime\n` +
+            `> Dashboard: https://economicbomb.xyz/dashboard`
+        )
+        .setColor(0xFFD700)
+        .setFooter({ text: 'Economic Bomb • Use ?help for all commands' });
+
+    try {
+        const systemChannel = guild.systemChannel;
+        if (systemChannel?.permissionsFor(guild.members.me)?.has('SendMessages')) {
+            await systemChannel.send({ embeds: [welcomeEmbed] });
+        } else {
+            const firstTextChannel = guild.channels.cache
+                .filter(c => c.type === 0 && c.permissionsFor(guild.members.me)?.has('SendMessages'))
+                .sort((a, b) => a.position - b.position)
+                .first();
+            if (firstTextChannel) await firstTextChannel.send({ embeds: [welcomeEmbed] });
+        }
+    } catch (e) {
+        console.error(`Could not send welcome message to ${guild.name}:`, e);
+    }
+});
+
+
     if (message.author.bot) return;
     if (!message.content.startsWith(PREFIX)) return;
 
@@ -807,6 +874,52 @@ client.on('messageCreate', async message => {
         }
     }
 
+    // ?daily
+    if (cmd === 'daily') {
+        const user = await getUser(message.author.id, guildId);
+        const COOLDOWN = 24 * 60 * 60 * 1000;
+        const now2 = Date.now();
+
+        if (user.lastDaily && now2 - user.lastDaily < COOLDOWN) {
+            const msLeft = COOLDOWN - (now2 - user.lastDaily);
+            const h = Math.floor(msLeft / 3600000);
+            const m = Math.floor((msLeft % 3600000) / 60000);
+            const s = Math.floor((msLeft % 60000) / 1000);
+            return message.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('⏳ Daily Already Claimed')
+                    .setDescription(`Come back in **${h}h ${m}m ${s}s**.`)
+                    .setColor(0x2b2d31)]
+            });
+        }
+
+        const streak = user.dailyStreak && user.lastDaily && (now2 - user.lastDaily < 48 * 60 * 60 * 1000)
+            ? user.dailyStreak + 1
+            : 1;
+
+        const base = 200;
+        const bonus = Math.min(streak - 1, 30) * 25;
+        const amount = base + bonus;
+
+        user.lastDaily = now2;
+        user.dailyStreak = streak;
+        user.balance = parseFloat((user.balance + amount).toFixed(2));
+        await user.save();
+
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('📅 Daily Reward')
+                .setDescription(`You claimed your daily reward!`)
+                .addFields(
+                    { name: '💵 Amount', value: `$${amount}`, inline: true },
+                    { name: '🔥 Streak', value: `${streak} day${streak !== 1 ? 's' : ''}`, inline: true },
+                    { name: '💰 New Balance', value: `$${user.balance.toFixed(2)}`, inline: true }
+                )
+                .setColor(0xFFD700)
+                .setFooter({ text: streak >= 7 ? '🔥 Hot streak! Keep it going!' : 'Come back tomorrow for a streak bonus!' })]
+        });
+    }
+
     // ?gleaderboard / ?glb — global top 10 per server
     if (cmd === 'gleaderboard' || cmd === 'glb') {
         const allUsers = await User.find().sort({ balance: -1 });
@@ -1033,7 +1146,7 @@ client.on('messageCreate', async message => {
                 .setTitle('📖 Economic Bomb — Commands')
                 .setColor(0x2b2d31)
                 .addFields(
-                    { name: '💰 Economy', value: '`?balance` `?deposit` `?withdraw` `?givemoney` `?work`', inline: false },
+                    { name: '💰 Economy', value: '`?balance` `?deposit` `?withdraw` `?givemoney` `?work` `?daily`', inline: false },
                     { name: '🎰 Gambling', value: '`?coinflip <bet> <heads|tails>` `?dice <bet>` `?slots <bet>` `?rob @user` `?duel @user`', inline: false },
                     { name: '📈 Stocks', value: '`?stocks` `?buystock <TICKER> <shares>` `?sellstock <TICKER> <shares>` `?portfolio` `?stockhistory <TICKER>`', inline: false },
                     { name: '🏆 Leaderboards', value: '`?leaderboard` `?bankleaderboard` `?gleaderboard` `?gbankleaderboard`', inline: false },
