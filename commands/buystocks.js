@@ -3,12 +3,6 @@ const Stock = require('../models/Stock');
 const Portfolio = require('../models/Portfolio');
 const User = require('../models/User');
 
-function applyPriceImpact(price, shares, direction) {
-    const impact = 1 + (direction * 0.002 * shares);
-    const noise = 1 + (Math.random() * 0.02 - 0.01);
-    return Math.max(0.01, parseFloat((price * impact * noise).toFixed(2)));
-}
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('buystock')
@@ -49,10 +43,6 @@ module.exports = {
         }
         await portfolio.save();
 
-        const newPrice = applyPriceImpact(stock.price, shares, 1);
-        stock.history.push(newPrice);
-        if (stock.history.length > 30) stock.history.shift();
-        stock.price = newPrice;
         stock.totalShares += shares;
         await stock.save();
 
@@ -62,9 +52,8 @@ module.exports = {
             .addFields(
                 { name: 'Stock', value: `${stock.name} (\`${ticker}\`)`, inline: true },
                 { name: 'Shares', value: `${shares}`, inline: true },
-                { name: 'Price Per Share', value: `$${(totalCost / shares).toFixed(2)}`, inline: true },
+                { name: 'Price Per Share', value: `$${stock.price.toFixed(2)}`, inline: true },
                 { name: 'Total Cost', value: `$${totalCost.toFixed(2)}`, inline: true },
-                { name: 'New Price', value: `$${newPrice.toFixed(2)}`, inline: true },
                 { name: 'Cash Remaining', value: `$${user.balance.toFixed(2)}`, inline: true }
             )
             .setFooter({ text: 'NRG Stock Market' })
