@@ -26,6 +26,7 @@ const Config = require('./models/Config');
 const jackpotLeaderboard = new Map();
 const PREFIX = '?';
 const OWNER_ID = '1453078748080504996';
+const isAdmin = (member) => member.permissions.has('Administrator') || member.id === OWNER_ID;
 
 const workCooldowns = new Map();
 const coinflipCooldowns = new Map();
@@ -85,7 +86,7 @@ client.on('messageCreate', async message => {
     const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
     const cmd = args.shift().toLowerCase();
     const now = Date.now();
-    const guildId = guildId;
+    const guildId = message.guild.id;
 
     // ── Config helpers ─────────────────────────────────────────
     const config = await Config.findOne({ guildId }) || {};
@@ -492,7 +493,8 @@ client.on('messageCreate', async message => {
 
     // ?stocks
     if (cmd === 'stocks') {
-        const stocks = await Stock.find().sort({ ticker: 1 });
+        const stocks = await Stock.find({ guildId }).sort({ ticker: 1 });
+        if (!stocks.length) return message.reply('❌ No stocks set up yet. An admin can run `?setupmarket` to initialize the market.');
         const rows = stocks.map(s => {
             const prev = s.history.length >= 2 ? s.history[s.history.length - 2] : s.price;
             const change = s.price - prev;
@@ -502,7 +504,7 @@ client.on('messageCreate', async message => {
         }).join('\n');
         return message.reply({
             embeds: [new EmbedBuilder()
-                .setTitle('📈 NRG Stock Market')
+                .setTitle('📈 Stock Market')
                 .setDescription(rows)
                 .setColor(0x00FF99)
                 .setFooter({ text: 'Prices update every 30 minutes' })
@@ -515,7 +517,7 @@ client.on('messageCreate', async message => {
         const ticker = args[0]?.toUpperCase();
         const shares = parseInt(args[1]);
         if (!ticker || !shares || shares <= 0) return message.reply('❌ Usage: `?buystock <TICKER> <shares>`');
-        const stock = await Stock.findOne({ ticker });
+        const stock = await Stock.findOne({ guildId, ticker });
         if (!stock) return message.reply(`❌ Ticker \`${ticker}\` not found.`);
         const user = await User.findOne({ userId: message.author.id, guildId: guildId });
         if (!user) return message.reply('❌ You have no economy account.');
@@ -561,7 +563,7 @@ client.on('messageCreate', async message => {
         const ticker = args[0]?.toUpperCase();
         const shares = parseInt(args[1]);
         if (!ticker || !shares || shares <= 0) return message.reply('❌ Usage: `?sellstock <TICKER> <shares>`');
-        const stock = await Stock.findOne({ ticker });
+        const stock = await Stock.findOne({ guildId, ticker });
         if (!stock) return message.reply(`❌ Ticker \`${ticker}\` not found.`);
         const portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: guildId });
         const holding = portfolio?.holdings.find(h => h.ticker === ticker);
@@ -603,7 +605,7 @@ client.on('messageCreate', async message => {
         let totalValue = 0, totalCost = 0;
         const rows = [];
         for (const h of portfolio.holdings) {
-            const stock = await Stock.findOne({ ticker: h.ticker });
+            const stock = await Stock.findOne({ guildId, ticker: h.ticker });
             if (!stock) continue;
             const currentValue = stock.price * h.shares;
             const costBasis = h.avgBuyPrice * h.shares;
@@ -631,7 +633,7 @@ client.on('messageCreate', async message => {
     if (cmd === 'stockhistory' || cmd === 'sh') {
         const ticker = args[0]?.toUpperCase();
         if (!ticker) return message.reply('❌ Usage: `?stockhistory <TICKER>`');
-        const stock = await Stock.findOne({ ticker });
+        const stock = await Stock.findOne({ guildId, ticker });
         if (!stock) return message.reply(`❌ Ticker \`${ticker}\` not found.`);
         const history = stock.history.slice(-10);
         const chart = history.map((p, i) => {
@@ -805,9 +807,83 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // OWNER ONLY COMMANDS
+    // ?gleaderboard / ?glb — global top 10 per server
+    if (cmd === 'gleaderboard' || cmd === 'glb') {
+        const allUsers = await User.find().sort({ balance: -1 });
+        const seen = new Map();
+        for (const u of allUsers) {
+            if (!seen.has(u.guildId)) seen.set(u.guildId, u);
+            if (seen.size >= 10) break;
+        }
+        const top = [...seen.values()].sort((a, b) => b.balance - a.balance).slice(0, 10);
+        const description = top.map((u, i) => `**${i + 1}.** <@${u.userId}> — $${u.balance} *(Server: ${u.guildId})*`).join('\n');
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🌍 Global Cash Leaderboard')
+                .setDescription(description || 'No data yet.')
+                .setColor(0xFFD700)
+                .setFooter({ text: 'Top 10 richest players across all servers' })]
+        });
+    }
+
+    // ?gbankleaderboard / ?gblb — global bank top 10 per server
+    if (cmd === 'gbankleaderboard' || cmd === 'gblb') {
+        const allUsers = await User.find().sort({ bank: -1 });
+        const seen = new Map();
+        for (const u of allUsers) {
+            if (!seen.has(u.guildId)) seen.set(u.guildId, u);
+            if (seen.size >= 10) break;
+        }
+        const top = [...seen.values()].sort((a, b) => b.bank - a.bank).slice(0, 10);
+        const description = top.map((u, i) => `**${i + 1}.** <@${u.userId}> — $${u.bank} *(Server: ${u.guildId})*`).join('\n');
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🌍 Global Bank Leaderboard')
+                .setDescription(description || 'No data yet.')
+                .setColor(0xFFD700)
+                .setFooter({ text: 'Top 10 richest bank balances across all servers' })]
+        });
+    }
+
+    // ?setupmarket — admin seeds the stock market for this server
+    if (cmd === 'setupmarket') {
+        if (!isAdmin(message.member)) return message.reply('❌ You need Administrator permission.');
+        const companies = [
+            { ticker: 'VLR',  name: 'Velera Inc',           price: 142.50 },
+            { ticker: 'FRGS', name: "Frogiee's Arcade",      price: 34.20  },
+            { ticker: 'DOGE', name: 'Doge UB',               price: 0.85   },
+            { ticker: 'CHRI', name: 'Cherri Inc',             price: 58.00  },
+            { ticker: 'TGLC', name: 'TGLSC Corp',             price: 210.00 },
+            { ticker: 'GNMT', name: 'Gn Math',               price: 76.40  },
+            { ticker: 'CNOS', name: 'Cine OS',               price: 99.99  },
+            { ticker: 'OVCL', name: 'Overcloaked Corp',       price: 185.30 },
+            { ticker: 'TRFL', name: 'Truffled Inc',           price: 47.60  },
+            { ticker: 'LNR',  name: 'LUNAR Research Inc',     price: 320.00 },
+            { ticker: 'VOID', name: 'Void Network Corp',      price: 5.55   },
+            { ticker: 'HDR',  name: 'Hydra Network Corp',     price: 88.88  },
+            { ticker: 'NRGX', name: 'NRG Exchange',           price: 500.00 },
+            { ticker: 'PLSM', name: 'Plasma Dynamics Inc',    price: 63.75  },
+            { ticker: 'ZRTH', name: 'Zeroth Systems',         price: 112.00 },
+        ];
+        for (const c of companies) {
+            await Stock.findOneAndUpdate(
+                { guildId, ticker: c.ticker },
+                { guildId, ...c, history: [c.price], totalShares: 0 },
+                { upsert: true, new: true }
+            );
+        }
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('📈 Market Initialized')
+                .setDescription(`Successfully seeded **${companies.length} stocks** for this server.\nUse \`?stocks\` to view the market.`)
+                .setColor(0x00FF99)
+                .setTimestamp()]
+        });
+    }
+
+    // OWNER ONLY COMMANDS (Admin permission required)
     if (cmd === 'ogive') {
-        if (message.author.id !== OWNER_ID) return;
+        if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
         const targetId = message.mentions.users.first()?.id;
         const amount = parseInt(args[1]);
         if (!targetId || !amount) return message.reply('❌ Usage: `?ogive @user <amount>`');
@@ -818,7 +894,7 @@ client.on('messageCreate', async message => {
     }
 
     if (cmd === 'osetbalance' || cmd === 'osetbal') {
-        if (message.author.id !== OWNER_ID) return;
+        if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
         const targetId = message.mentions.users.first()?.id;
         const amount = parseInt(args[1]);
         if (!targetId || amount === undefined) return message.reply('❌ Usage: `?osetbalance @user <amount>`');
@@ -829,7 +905,7 @@ client.on('messageCreate', async message => {
     }
 
     if (cmd === 'osetbank') {
-        if (message.author.id !== OWNER_ID) return;
+        if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
         const targetId = message.mentions.users.first()?.id;
         const amount = parseInt(args[1]);
         if (!targetId || amount === undefined) return message.reply('❌ Usage: `?osetbank @user <amount>`');
@@ -840,9 +916,10 @@ client.on('messageCreate', async message => {
     }
 
     if (cmd === 'ostockfix') {
-    if (message.author.id !== OWNER_ID) return;
+    if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
 
-    const stocks = await Stock.find();
+    const stocks = await Stock.find({ guildId });
+    if (!stocks.length) return message.reply('❌ No stocks found. Run `?setupmarket` first.');
     const results = [];
 
     for (const stock of stocks) {
@@ -872,7 +949,7 @@ client.on('messageCreate', async message => {
 
     
     if (cmd === 'oremovestock') {
-        if (message.author.id !== OWNER_ID) return;
+        if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
         const targetId = message.mentions.users.first()?.id;
         const ticker = args[1]?.toUpperCase();
         if (!targetId || !ticker) return message.reply('❌ Usage: `?oremovestock @user <TICKER>`');
@@ -886,13 +963,13 @@ client.on('messageCreate', async message => {
     }
 
     if (cmd === 'oresetleaderboard' || cmd === 'oreset') {
-        if (message.author.id !== OWNER_ID) return;
+        if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
         await User.updateMany({}, { balance: 0, bank: 0 });
         return message.reply('Leaderboard reset.');
     }
 
     if (cmd === 'oeconomystats' || cmd === 'ostats') {
-        if (message.author.id !== OWNER_ID) return;
+        if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
         const users = await User.find({ guildId: guildId });
         const totalMoney = users.reduce((a, b) => a + b.balance + b.bank, 0);
         const richest = users.sort((a, b) => (b.balance + b.bank) - (a.balance + a.bank))[0];
@@ -908,7 +985,7 @@ client.on('messageCreate', async message => {
     }
 
     if (cmd === 'ouserinfo') {
-        if (message.author.id !== OWNER_ID) return;
+        if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
         const targetId = message.mentions.users.first()?.id;
         if (!targetId) return message.reply('❌ Usage: `?ouserinfo @user`');
         const user = await getUser(targetId, guildId);
@@ -923,7 +1000,7 @@ client.on('messageCreate', async message => {
     }
 
     if (cmd === 'ojackpotdrop') {
-        if (message.author.id !== OWNER_ID) return;
+        if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
         const amount = parseInt(args[0]);
         if (!amount) return message.reply('❌ Usage: `?ojackpotdrop <amount>`');
         const users = await User.find({ guildId: guildId });
@@ -940,7 +1017,7 @@ client.on('messageCreate', async message => {
     }
 
     if (cmd === 'clearcooldowns') {
-        if (message.author.id !== OWNER_ID) return;
+        if (!isAdmin(message.member)) return message.reply({ content: "❌ You need Administrator permission.", ephemeral: true });
         workCooldowns.clear();
         coinflipCooldowns.clear();
         diceCooldowns.clear();
@@ -953,17 +1030,17 @@ client.on('messageCreate', async message => {
     if (cmd === 'help') {
         return message.reply({
             embeds: [new EmbedBuilder()
-                .setTitle('📖 NRG Bot — Prefix Commands')
+                .setTitle('📖 Economic Bomb — Commands')
                 .setColor(0x2b2d31)
                 .addFields(
                     { name: '💰 Economy', value: '`?balance` `?deposit` `?withdraw` `?givemoney` `?work`', inline: false },
                     { name: '🎰 Gambling', value: '`?coinflip <bet> <heads|tails>` `?dice <bet>` `?slots <bet>` `?rob @user` `?duel @user`', inline: false },
                     { name: '📈 Stocks', value: '`?stocks` `?buystock <TICKER> <shares>` `?sellstock <TICKER> <shares>` `?portfolio` `?stockhistory <TICKER>`', inline: false },
-                    { name: '🏆 Leaderboards', value: '`?leaderboard` `?bankleaderboard`', inline: false },
-                    { name: '⛓️ Slave System', value: '`?buy @user` `?slave` `?slavepanel`', inline: false },
-                    { name: '👑 Owner Only', value: '`?ogive` `?osetbalance` `?osetbank` `?oresetleaderboard` `?oeconomystats` `?ouserinfo` `?ojackpotdrop` `?clearcooldowns`', inline: false }
+                    { name: '🏆 Leaderboards', value: '`?leaderboard` `?bankleaderboard` `?gleaderboard` `?gbankleaderboard`', inline: false },
+                    { name: '⛓️ Slave System', value: '`?buy @user` `?slave` `?slavepanel` `?slavelist`', inline: false },
+                    { name: '👑 Admin Only', value: '`?ogive` `?osetbalance` `?osetbank` `?oresetleaderboard` `?oeconomystats` `?ouserinfo` `?ojackpotdrop` `?clearcooldowns` `?setupmarket` `?ostockfix`', inline: false }
                 )
-                .setFooter({ text: 'NRG Economy Bot' })]
+                .setFooter({ text: 'Economic Bomb • Admin commands require Administrator permission' })]
         });
     }
 });
