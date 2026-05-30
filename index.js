@@ -21,6 +21,7 @@ const Portfolio = require('./models/Portfolio');
 const User = require('./models/User');
 const Slave = require('./models/Slave');
 const { getUser } = require('./utils/economy');
+const Config = require('./models/Config');
 
 const jackpotLeaderboard = new Map();
 const PREFIX = '?';
@@ -84,10 +85,81 @@ client.on('messageCreate', async message => {
     const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
     const cmd = args.shift().toLowerCase();
     const now = Date.now();
+    const guildId = guildId;
+
+    // ── Config helpers ─────────────────────────────────────────
+    const config = await Config.findOne({ guildId }) || {};
+    const modules = config.modules || {};
+    const bannedUsers = config.bannedUsers || [];
+    const allowedChannels = config.allowedChannels || [];
+
+    // ── Channel restriction ─────────────────────────────────────
+    if (allowedChannels.length > 0 && !allowedChannels.includes(message.channel.id)) return;
+
+    // ── Ban check ───────────────────────────────────────────────
+    const isBanned = bannedUsers.some(b => b.userId === message.author.id);
+    if (isBanned) {
+        const banEntry = bannedUsers.find(b => b.userId === message.author.id);
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('🔨 You Are Banned')
+                .setDescription(`You have been banned from using this bot.\n**Reason:** ${banEntry?.reason || 'No reason given'}`)
+                .setColor(0xff0000)]
+        });
+    }
+
+    // ── Module check ────────────────────────────────────────────
+    const MODULE_MAP = {
+        work: ['work'],
+        rob: ['rob'],
+        coinflip: ['coinflip', 'cf'],
+        dice: ['dice'],
+        slots: ['slots'],
+        duel: ['duel'],
+        stocks: ['stocks', 'buystock', 'sellstock', 'portfolio', 'port', 'stockhistory', 'sh'],
+        slave: ['buy', 'outbid', 'slave', 'slavepanel', 'slavelist'],
+        givemoney: ['givemoney', 'give'],
+        deposit: ['deposit', 'dep'],
+        withdraw: ['withdraw', 'with'],
+        leaderboard: ['leaderboard', 'lb', 'bankleaderboard', 'blb']
+    };
+    for (const [mod, cmds] of Object.entries(MODULE_MAP)) {
+        if (cmds.includes(cmd) && modules[mod] === false) {
+            return message.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('🧩 Feature Disabled')
+                    .setDescription(`The \`?${cmd}\` command is currently disabled in this server.`)
+                    .setColor(0x71717a)]
+            });
+        }
+    }
+
+    // ── Anti-cheat helper ───────────────────────────────────────
+    async function anticheatCheck(userId) {
+        const MAX_LEGIT = 500000;
+        const u = await getUser(userId, guildId);
+        const total = u.balance + u.bank;
+        if (total > MAX_LEGIT) {
+            u.balance = 0;
+            u.bank = 0;
+            await u.save();
+            try {
+                const discordUser = await client.users.fetch(userId);
+                await discordUser.send({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('🛡️ Anti-Cheat Triggered')
+                        .setDescription('Your balance was reset to $0 for exceeding the maximum possible earned amount.')
+                        .setColor(0xff0000)]
+                });
+            } catch {}
+            return true; // was flagged
+        }
+        return false;
+    }
 
     // ?balance / ?bal
     if (cmd === 'balance' || cmd === 'bal') {
-        const user = await getUser(message.author.id, message.guild.id);
+        const user = await getUser(message.author.id, guildId);
         return message.reply({
             embeds: [new EmbedBuilder()
                 .setTitle(`💰 ${message.author.username}'s Balance`)
@@ -102,7 +174,7 @@ client.on('messageCreate', async message => {
     // ?work
     if (cmd === 'work') {
         const COOLDOWN = 2 * 60 * 1000;
-        const user = await getUser(message.author.id, message.guild.id);
+        const user = await getUser(message.author.id, guildId);
 
         if (user.lastWork && now - user.lastWork < COOLDOWN) {
             const timeLeft = ((COOLDOWN - (now - user.lastWork)) / 1000).toFixed(1);
@@ -112,13 +184,13 @@ client.on('messageCreate', async message => {
         const amount = Math.floor(Math.random() * 76) + 25;
         user.lastWork = now;
 
-        const slave = await Slave.findOne({ userId: message.author.id, guildId: message.guild.id });
+        const slave = await Slave.findOne({ userId: message.author.id, guildId: guildId });
 
         if (slave?.ownerId) {
             slave.debt = parseFloat((slave.debt - amount).toFixed(2));
             slave.totalEarned = parseFloat((slave.totalEarned + amount).toFixed(2));
 
-            const owner = await getUser(slave.ownerId, message.guild.id);
+            const owner = await getUser(slave.ownerId, guildId);
             owner.balance = parseFloat((owner.balance + amount).toFixed(2));
             await owner.save();
 
@@ -174,6 +246,7 @@ client.on('messageCreate', async message => {
 
         user.balance += amount;
         await user.save();
+        await anticheatCheck(message.author.id);
         return message.reply({
             embeds: [new EmbedBuilder()
                 .setTitle('💼 Work Complete')
@@ -184,7 +257,7 @@ client.on('messageCreate', async message => {
 
     // ?deposit / ?dep <amount|all>
     if (cmd === 'deposit' || cmd === 'dep') {
-        const user = await getUser(message.author.id, message.guild.id);
+        const user = await getUser(message.author.id, guildId);
         const amount = args[0] === 'all' ? user.balance : parseInt(args[0]);
         if (!amount || amount <= 0) return message.reply('❌ Usage: `?deposit <amount|all>`');
         if (user.balance < amount) return message.reply("❌ You don't have enough money in your wallet.");
@@ -201,7 +274,7 @@ client.on('messageCreate', async message => {
 
     // ?withdraw / ?with <amount|all>
     if (cmd === 'withdraw' || cmd === 'with') {
-        const user = await getUser(message.author.id, message.guild.id);
+        const user = await getUser(message.author.id, guildId);
         const amount = args[0] === 'all' ? user.bank : parseInt(args[0]);
         if (!amount || amount <= 0) return message.reply('❌ Usage: `?withdraw <amount|all>`');
         if (user.bank < amount) return message.reply("❌ You don't have enough money in your bank.");
@@ -221,8 +294,8 @@ client.on('messageCreate', async message => {
         const targetId = message.mentions.users.first()?.id;
         const amount = parseInt(args[1]);
         if (!targetId || !amount || amount <= 0) return message.reply('❌ Usage: `?give @user <amount>`');
-        const user = await getUser(message.author.id, message.guild.id);
-        const receiver = await getUser(targetId, message.guild.id);
+        const user = await getUser(message.author.id, guildId);
+        const receiver = await getUser(targetId, guildId);
         if (user.balance < amount) return message.reply('❌ Not enough money.');
         user.balance -= amount;
         receiver.balance += amount;
@@ -247,7 +320,7 @@ client.on('messageCreate', async message => {
             if (now < exp) return message.reply('⏳ Coinflip cooldown active.');
         }
         coinflipCooldowns.set(message.author.id, now);
-        const user = await getUser(message.author.id, message.guild.id);
+        const user = await getUser(message.author.id, guildId);
         if (user.balance < bet) return message.reply('❌ Not enough balance.');
         user.balance -= bet;
         const result = Math.random() < 0.5 ? 'heads' : 'tails';
@@ -257,6 +330,7 @@ client.on('messageCreate', async message => {
         else { text += `You lost $${bet}`; }
         user.balance += winnings;
         await user.save();
+        await anticheatCheck(message.author.id);
         return message.reply({
             embeds: [new EmbedBuilder()
                 .setTitle('🪙 Coinflip')
@@ -275,7 +349,7 @@ client.on('messageCreate', async message => {
             if (now < exp) return message.reply('⏳ Dice cooldown active.');
         }
         diceCooldowns.set(message.author.id, now);
-        const user = await getUser(message.author.id, message.guild.id);
+        const user = await getUser(message.author.id, guildId);
         if (user.balance < bet) return message.reply('❌ Not enough balance.');
         user.balance -= bet;
         const userRoll = Math.floor(Math.random() * 6) + 1;
@@ -287,6 +361,7 @@ client.on('messageCreate', async message => {
         else { text += `You lost $${bet}`; }
         user.balance += winnings;
         await user.save();
+        await anticheatCheck(message.author.id);
         return message.reply({
             embeds: [new EmbedBuilder()
                 .setTitle('🎲 Dice')
@@ -305,7 +380,7 @@ client.on('messageCreate', async message => {
             if (now < exp) return message.reply('⏳ Slots cooldown active. Try again later.');
         }
         slotsCooldowns.set(message.author.id, now);
-        const user = await getUser(message.author.id, message.guild.id);
+        const user = await getUser(message.author.id, guildId);
         if (user.balance < bet) return message.reply('❌ Invalid bet.');
         user.balance -= bet;
         const spin = [symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)]];
@@ -315,6 +390,7 @@ client.on('messageCreate', async message => {
         else if (spin[0] === spin[1] || spin[1] === spin[2] || spin[0] === spin[2]) { winnings = bet * 2; text = `You won $${winnings}`; }
         user.balance += winnings;
         await user.save();
+        await anticheatCheck(message.author.id);
         return message.reply({
             embeds: [new EmbedBuilder()
                 .setTitle('🎰 Slots')
@@ -334,8 +410,8 @@ client.on('messageCreate', async message => {
             if (now < exp) return message.reply('⏳ Rob cooldown active.');
         }
         robCooldowns.set(message.author.id, now);
-        const user = await getUser(message.author.id, message.guild.id);
-        const victim = await getUser(targetId, message.guild.id);
+        const user = await getUser(message.author.id, guildId);
+        const victim = await getUser(targetId, guildId);
         if (victim.balance < 50) return message.reply('❌ Target is too poor to rob.');
         const victimTotal = victim.balance + victim.bank;
         if (victimTotal > user.balance * 5) return message.reply('❌ This target is too powerful to rob.');
@@ -351,6 +427,7 @@ client.on('messageCreate', async message => {
             victim.balance -= amount;
             user.balance += amount;
             await user.save(); await victim.save();
+            await anticheatCheck(message.author.id);
             return message.reply({
                 embeds: [new EmbedBuilder()
                     .setTitle('💰 Rob Success')
@@ -390,7 +467,7 @@ client.on('messageCreate', async message => {
 
     // ?leaderboard / ?lb
     if (cmd === 'leaderboard' || cmd === 'lb') {
-        const users = await User.find({ guildId: message.guild.id }).sort({ balance: -1 }).limit(10);
+        const users = await User.find({ guildId: guildId }).sort({ balance: -1 }).limit(10);
         const description = users.map((u, i) => `**${i + 1}.** <@${u.userId}> - $${u.balance}`).join('\n');
         return message.reply({
             embeds: [new EmbedBuilder()
@@ -402,7 +479,7 @@ client.on('messageCreate', async message => {
 
     // ?bankleaderboard / ?blb
     if (cmd === 'bankleaderboard' || cmd === 'blb') {
-        const users = await User.find({ guildId: message.guild.id }).sort({ bank: -1 }).limit(10);
+        const users = await User.find({ guildId: guildId }).sort({ bank: -1 }).limit(10);
         if (!users.length) return message.reply('No data yet.');
         const description = users.map((u, i) => `**${i + 1}.** <@${u.userId}> — $${u.bank}`).join('\n');
         return message.reply({
@@ -440,14 +517,14 @@ client.on('messageCreate', async message => {
         if (!ticker || !shares || shares <= 0) return message.reply('❌ Usage: `?buystock <TICKER> <shares>`');
         const stock = await Stock.findOne({ ticker });
         if (!stock) return message.reply(`❌ Ticker \`${ticker}\` not found.`);
-        const user = await User.findOne({ userId: message.author.id, guildId: message.guild.id });
+        const user = await User.findOne({ userId: message.author.id, guildId: guildId });
         if (!user) return message.reply('❌ You have no economy account.');
         const totalCost = parseFloat((stock.price * shares).toFixed(2));
         if (user.balance < totalCost) return message.reply(`❌ You need **$${totalCost.toFixed(2)}** but only have **$${user.balance.toFixed(2)}**.`);
         user.balance = parseFloat((user.balance - totalCost).toFixed(2));
         await user.save();
-        let portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: message.guild.id });
-        if (!portfolio) portfolio = new Portfolio({ userId: message.author.id, guildId: message.guild.id, holdings: [] });
+        let portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: guildId });
+        if (!portfolio) portfolio = new Portfolio({ userId: message.author.id, guildId: guildId, holdings: [] });
         const existing = portfolio.holdings.find(h => h.ticker === ticker);
         if (existing) {
             const totalShares = existing.shares + shares;
@@ -486,7 +563,7 @@ client.on('messageCreate', async message => {
         if (!ticker || !shares || shares <= 0) return message.reply('❌ Usage: `?sellstock <TICKER> <shares>`');
         const stock = await Stock.findOne({ ticker });
         if (!stock) return message.reply(`❌ Ticker \`${ticker}\` not found.`);
-        const portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: message.guild.id });
+        const portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: guildId });
         const holding = portfolio?.holdings.find(h => h.ticker === ticker);
         if (!holding || holding.shares < shares) return message.reply(`❌ You don't have enough shares of \`${ticker}\`.`);
         const totalEarned = parseFloat((stock.price * shares).toFixed(2));
@@ -494,7 +571,7 @@ client.on('messageCreate', async message => {
         holding.shares -= shares;
         if (holding.shares === 0) portfolio.holdings = portfolio.holdings.filter(h => h.ticker !== ticker);
         await portfolio.save();
-        const user = await User.findOne({ userId: message.author.id, guildId: message.guild.id });
+        const user = await User.findOne({ userId: message.author.id, guildId: guildId });
         user.balance = parseFloat((user.balance + totalEarned).toFixed(2));
         await user.save();
         const newPrice = applyPriceImpact(stock.price, shares, -1);
@@ -521,7 +598,7 @@ client.on('messageCreate', async message => {
 
     // ?portfolio / ?port
     if (cmd === 'portfolio' || cmd === 'port') {
-        const portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: message.guild.id });
+        const portfolio = await Portfolio.findOne({ userId: message.author.id, guildId: guildId });
         if (!portfolio || !portfolio.holdings.length) return message.reply('📭 You have no stocks. Use `?buystock` to get started.');
         let totalValue = 0, totalCost = 0;
         const rows = [];
@@ -586,10 +663,10 @@ client.on('messageCreate', async message => {
         if (target.id === message.author.id) return message.reply("❌ You can't buy yourself.");
         if (target.bot) return message.reply("❌ You can't buy a bot.");
 
-        const buyer = await getUser(message.author.id, message.guild.id);
-        const targetEcon = await getUser(target.id, message.guild.id);
+        const buyer = await getUser(message.author.id, guildId);
+        const targetEcon = await getUser(target.id, guildId);
 
-        const existingSlave = await Slave.findOne({ userId: target.id, guildId: message.guild.id });
+        const existingSlave = await Slave.findOne({ userId: target.id, guildId: guildId });
         if (existingSlave?.ownerId) return message.reply(`❌ <@${target.id}> is already owned by <@${existingSlave.ownerId}>.`);
 
         const buyPrice = targetEcon.balance * 2;
@@ -616,7 +693,7 @@ client.on('messageCreate', async message => {
             if (!outbidAmount || outbidAmount <= buyPrice) {
                 return m.reply(`❌ You need to outbid more than **$${buyPrice.toFixed(2)}**.`);
             }
-            const targetEconFresh = await getUser(target.id, message.guild.id);
+            const targetEconFresh = await getUser(target.id, guildId);
             if (targetEconFresh.balance < outbidAmount) {
                 return m.reply(`❌ You don't have **$${outbidAmount.toFixed(2)}** to outbid.`);
             }
@@ -632,12 +709,12 @@ client.on('messageCreate', async message => {
         collector.on('end', async (collected, reason) => {
             if (reason === 'outbid') return;
 
-            const freshBuyer = await getUser(message.author.id, message.guild.id);
+            const freshBuyer = await getUser(message.author.id, guildId);
             freshBuyer.balance = parseFloat((freshBuyer.balance - buyPrice).toFixed(2));
             await freshBuyer.save();
 
-            let slave = await Slave.findOne({ userId: target.id, guildId: message.guild.id });
-            if (!slave) slave = new Slave({ userId: target.id, guildId: message.guild.id });
+            let slave = await Slave.findOne({ userId: target.id, guildId: guildId });
+            if (!slave) slave = new Slave({ userId: target.id, guildId: guildId });
             slave.ownerId = message.author.id;
             slave.debt = parseFloat((buyPrice * 2).toFixed(2));
             slave.totalEarned = 0;
@@ -672,7 +749,7 @@ client.on('messageCreate', async message => {
 
     // ?slave - check your slave status
     if (cmd === 'slave') {
-        const slave = await Slave.findOne({ userId: message.author.id, guildId: message.guild.id });
+        const slave = await Slave.findOne({ userId: message.author.id, guildId: guildId });
         if (!slave?.ownerId) return message.reply('✅ You are a free person.');
         return message.reply({
             embeds: [new EmbedBuilder()
@@ -690,11 +767,11 @@ client.on('messageCreate', async message => {
 
     // ?slavepanel - owner panel
     if (cmd === 'slavepanel') {
-        const slaves = await Slave.find({ ownerId: message.author.id, guildId: message.guild.id });
+        const slaves = await Slave.find({ ownerId: message.author.id, guildId: guildId });
         if (!slaves.length) return message.reply("❌ You don't own anyone.");
 
         for (const slave of slaves) {
-            const slaveEcon = await getUser(slave.userId, message.guild.id);
+            const slaveEcon = await getUser(slave.userId, guildId);
             const embed = new EmbedBuilder()
                 .setTitle(`⛓️ Slave: <@${slave.userId}>`)
                 .addFields(
@@ -734,7 +811,7 @@ client.on('messageCreate', async message => {
         const targetId = message.mentions.users.first()?.id;
         const amount = parseInt(args[1]);
         if (!targetId || !amount) return message.reply('❌ Usage: `?ogive @user <amount>`');
-        const user = await getUser(targetId, message.guild.id);
+        const user = await getUser(targetId, guildId);
         user.balance += amount;
         await user.save();
         return message.reply(`Gave $${amount} to <@${targetId}>`);
@@ -745,7 +822,7 @@ client.on('messageCreate', async message => {
         const targetId = message.mentions.users.first()?.id;
         const amount = parseInt(args[1]);
         if (!targetId || amount === undefined) return message.reply('❌ Usage: `?osetbalance @user <amount>`');
-        const user = await getUser(targetId, message.guild.id);
+        const user = await getUser(targetId, guildId);
         user.balance = amount;
         await user.save();
         return message.reply('Balance set.');
@@ -756,7 +833,7 @@ client.on('messageCreate', async message => {
         const targetId = message.mentions.users.first()?.id;
         const amount = parseInt(args[1]);
         if (!targetId || amount === undefined) return message.reply('❌ Usage: `?osetbank @user <amount>`');
-        const user = await getUser(targetId, message.guild.id);
+        const user = await getUser(targetId, guildId);
         user.bank = amount;
         await user.save();
         return message.reply('Bank set.');
@@ -794,6 +871,20 @@ client.on('messageCreate', async message => {
 }
 
     
+    if (cmd === 'oremovestock') {
+        if (message.author.id !== OWNER_ID) return;
+        const targetId = message.mentions.users.first()?.id;
+        const ticker = args[1]?.toUpperCase();
+        if (!targetId || !ticker) return message.reply('❌ Usage: `?oremovestock @user <TICKER>`');
+        const portfolio = await Portfolio.findOne({ userId: targetId, guildId });
+        if (!portfolio) return message.reply('❌ User has no portfolio.');
+        const before = portfolio.holdings.length;
+        portfolio.holdings = portfolio.holdings.filter(h => h.ticker !== ticker);
+        if (portfolio.holdings.length === before) return message.reply(`❌ <@${targetId}> doesn't hold \`${ticker}\`.`);
+        await portfolio.save();
+        return message.reply(`✅ Removed all \`${ticker}\` shares from <@${targetId}>'s portfolio.`);
+    }
+
     if (cmd === 'oresetleaderboard' || cmd === 'oreset') {
         if (message.author.id !== OWNER_ID) return;
         await User.updateMany({}, { balance: 0, bank: 0 });
@@ -802,7 +893,7 @@ client.on('messageCreate', async message => {
 
     if (cmd === 'oeconomystats' || cmd === 'ostats') {
         if (message.author.id !== OWNER_ID) return;
-        const users = await User.find({ guildId: message.guild.id });
+        const users = await User.find({ guildId: guildId });
         const totalMoney = users.reduce((a, b) => a + b.balance + b.bank, 0);
         const richest = users.sort((a, b) => (b.balance + b.bank) - (a.balance + a.bank))[0];
         return message.reply({
@@ -820,7 +911,7 @@ client.on('messageCreate', async message => {
         if (message.author.id !== OWNER_ID) return;
         const targetId = message.mentions.users.first()?.id;
         if (!targetId) return message.reply('❌ Usage: `?ouserinfo @user`');
-        const user = await getUser(targetId, message.guild.id);
+        const user = await getUser(targetId, guildId);
         return message.reply({
             embeds: [new EmbedBuilder()
                 .setTitle('👤 User Info')
@@ -835,7 +926,7 @@ client.on('messageCreate', async message => {
         if (message.author.id !== OWNER_ID) return;
         const amount = parseInt(args[0]);
         if (!amount) return message.reply('❌ Usage: `?ojackpotdrop <amount>`');
-        const users = await User.find({ guildId: message.guild.id });
+        const users = await User.find({ guildId: guildId });
         if (!users.length) return message.reply('No users found.');
         const winner = users[Math.floor(Math.random() * users.length)];
         winner.balance += amount;
