@@ -200,7 +200,10 @@ client.on('messageCreate', async message => {
     }
 
     if (cmd === 'balance' || cmd === 'bal')
-        return client.commands.get('bank').execute(adapt({ getSubcommand: () => 'balance' }));
+        return client.commands.get('bank').execute(adapt({
+            getSubcommand: () => 'balance',
+            getUser: n => n === 'user' ? message.mentions.users.first() : null,
+        }));
 
     if (cmd === 'deposit' || cmd === 'dep')
         return client.commands.get('bank').execute(adapt({ getSubcommand: () => 'deposit',  getString: n => n === 'amount' ? args[0] : null }));

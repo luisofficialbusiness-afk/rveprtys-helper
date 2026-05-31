@@ -18,7 +18,8 @@ module.exports = {
         .setDescription('Manage your wallet and bank')
         .addSubcommand(sub =>
             sub.setName('balance')
-                .setDescription('Check your balance')
+                .setDescription("Check your balance or someone else's")
+                .addUserOption(o => o.setName('user').setDescription('User to check (default: yourself)').setRequired(false))
         )
         .addSubcommand(sub =>
             sub.setName('deposit')
@@ -36,11 +37,13 @@ module.exports = {
         const user = await getUser(interaction.user.id, interaction.guild.id);
 
         if (sub === 'balance') {
+            const target     = interaction.options.getUser('user') ?? interaction.user;
+            const targetUser = target.id === interaction.user.id ? user : await getUser(target.id, interaction.guild.id);
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle(`${interaction.user.username}'s Balance`)
+                .setTitle(`${target.username}'s Balance`)
                 .addFields(
-                    { name: 'Wallet', value: `$${fmt(user.balance)}`, inline: true },
-                    { name: 'Bank',   value: `$${fmt(user.bank)}`,    inline: true }
+                    { name: 'Wallet', value: `$${fmt(targetUser.balance)}`, inline: true },
+                    { name: 'Bank',   value: `$${fmt(targetUser.bank)}`,    inline: true }
                 )
                 .setColor(0x2b2d31)] });
         }
