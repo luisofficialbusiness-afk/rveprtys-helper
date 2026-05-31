@@ -97,7 +97,8 @@ module.exports = {
             }
         }
 
-        user.balance = parseFloat((user.balance + winnings).toFixed(2));
+        user.balance          = parseFloat((user.balance + winnings).toFixed(2));
+        user.gamblingWinnings = parseFloat(((user.gamblingWinnings ?? 0) + winnings - bet).toFixed(2));
         await user.save();
         await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
 
