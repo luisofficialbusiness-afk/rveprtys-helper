@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getUser } = require('../utils/economy');
 
 const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -20,15 +20,15 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        const user = interaction.user;
+        const user     = interaction.user;
         const opponent = interaction.options.getUser('opponent');
-        const betStr = interaction.options.getString('bet');
+        const betStr   = interaction.options.getString('bet');
 
-        if (opponent.bot) return interaction.reply({ content: "❌ You can't duel bots.", ephemeral: true });
+        if (opponent.bot)          return interaction.reply({ content: "❌ You can't duel bots.", ephemeral: true });
         if (opponent.id === user.id) return interaction.reply({ content: "❌ You can't duel yourself.", ephemeral: true });
 
-        const challenger = await getUser(user.id, interaction.guild.id);
-        const opponentEcon = await getUser(opponent.id, interaction.guild.id);
+        const challenger   = await getUser(user.id,       interaction.guild.id);
+        const opponentEcon = await getUser(opponent.id,   interaction.guild.id);
 
         let betAmount = 0;
         if (betStr) {
@@ -39,48 +39,95 @@ module.exports = {
                 betAmount = parseFloat(raw);
                 if (isNaN(betAmount) || betAmount <= 0) return interaction.reply({ content: '❌ Invalid bet amount.', ephemeral: true });
             }
-            if (betAmount <= 0) return interaction.reply({ content: "❌ Neither of you have anything to bet.", ephemeral: true });
-            if (challenger.balance < betAmount) return interaction.reply({ content: `❌ You don't have **$${fmt(betAmount)}** to bet.`, ephemeral: true });
-            if (opponentEcon.balance < betAmount) return interaction.reply({ content: `❌ ${opponent.username} doesn't have **$${fmt(betAmount)}** to bet.`, ephemeral: true });
+            if (betAmount <= 0)                         return interaction.reply({ content: "❌ Neither of you have anything to bet.", ephemeral: true });
+            if (challenger.balance < betAmount)         return interaction.reply({ content: `❌ You don't have **$${fmt(betAmount)}** to bet.`, ephemeral: true });
+            if (opponentEcon.balance < betAmount)       return interaction.reply({ content: `❌ ${opponent.username} doesn't have **$${fmt(betAmount)}** to bet.`, ephemeral: true });
         }
 
-        if (Math.random() < DEATH_CHANCE) {
-            if (betAmount > 0) {
-                challenger.balance = parseFloat((challenger.balance - betAmount).toFixed(2));
-                opponentEcon.balance = parseFloat((opponentEcon.balance - betAmount).toFixed(2));
-                await challenger.save();
-                await opponentEcon.save();
-            }
-            return interaction.reply({
-                embeds: [new EmbedBuilder()
-                    .setTitle('💀 Both players died...')
-                    .setDescription(`${user.username} and ${opponent.username} somehow managed to kill each other.${betAmount > 0 ? `\n\nBoth lost **$${fmt(betAmount)}**.` : ''}`)
-                    .setColor(0x71717a)]
-            });
-        }
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('duel_accept').setLabel('Accept').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId('duel_decline').setLabel('Decline').setStyle(ButtonStyle.Danger)
+        );
 
-        const participants = [user, opponent];
-        const winner = participants[Math.floor(Math.random() * participants.length)];
-        const loser = winner.id === user.id ? opponent : user;
+        const challengeDesc = betAmount > 0
+            ? `<@${user.id}> has challenged <@${opponent.id}> to a duel for **$${fmt(betAmount)}**!`
+            : `<@${user.id}> has challenged <@${opponent.id}> to a duel!`;
 
-        if (betAmount > 0) {
-            const winnerEcon = winner.id === user.id ? challenger : opponentEcon;
-            const loserEcon  = winner.id === user.id ? opponentEcon : challenger;
-            winnerEcon.balance = parseFloat((winnerEcon.balance + betAmount).toFixed(2));
-            loserEcon.balance  = parseFloat((loserEcon.balance  - betAmount).toFixed(2));
-            await winnerEcon.save();
-            await loserEcon.save();
-        }
-
-        return interaction.reply({
+        const msg = await interaction.reply({
             embeds: [new EmbedBuilder()
-                .setTitle('⚔️ Duel Result')
+                .setTitle('Duel Challenge')
+                .setDescription(`${challengeDesc}\n\n<@${opponent.id}>, do you accept?`)
+                .setColor(0x2b2d31)
+                .setFooter({ text: 'Expires in 60 seconds' })],
+            components: [row],
+            fetchReply: true
+        });
+
+        const collector = msg.createMessageComponentCollector({
+            filter: i => i.user.id === opponent.id,
+            time: 60000,
+            max: 1
+        });
+
+        collector.on('collect', async i => {
+            if (i.customId === 'duel_decline') {
+                return i.update({ embeds: [new EmbedBuilder()
+                    .setTitle('Duel Declined')
+                    .setDescription(`<@${opponent.id}> declined the duel.`)
+                    .setColor(0xff0000)], components: [] });
+            }
+
+            const freshChallenger  = await getUser(user.id,     interaction.guild.id);
+            const freshOpponent    = await getUser(opponent.id,  interaction.guild.id);
+
+            if (betAmount > 0) {
+                if (freshChallenger.balance < betAmount)
+                    return i.update({ embeds: [new EmbedBuilder().setTitle('Duel Cancelled').setDescription(`<@${user.id}> no longer has enough to cover the bet.`).setColor(0xff0000)], components: [] });
+                if (freshOpponent.balance < betAmount)
+                    return i.update({ embeds: [new EmbedBuilder().setTitle('Duel Cancelled').setDescription(`<@${opponent.id}> no longer has enough to cover the bet.`).setColor(0xff0000)], components: [] });
+            }
+
+            if (Math.random() < DEATH_CHANCE) {
+                if (betAmount > 0) {
+                    freshChallenger.balance = parseFloat((freshChallenger.balance - betAmount).toFixed(2));
+                    freshOpponent.balance   = parseFloat((freshOpponent.balance   - betAmount).toFixed(2));
+                    await freshChallenger.save();
+                    await freshOpponent.save();
+                }
+                return i.update({ embeds: [new EmbedBuilder()
+                    .setTitle('Both players died...')
+                    .setDescription(`${user.username} and ${opponent.username} somehow managed to kill each other.${betAmount > 0 ? `\n\nBoth lost **$${fmt(betAmount)}**.` : ''}`)
+                    .setColor(0x71717a)], components: [] });
+            }
+
+            const winner     = Math.random() < 0.5 ? user : opponent;
+            const winnerEcon = winner.id === user.id ? freshChallenger : freshOpponent;
+            const loserEcon  = winner.id === user.id ? freshOpponent   : freshChallenger;
+
+            if (betAmount > 0) {
+                winnerEcon.balance = parseFloat((winnerEcon.balance + betAmount).toFixed(2));
+                loserEcon.balance  = parseFloat((loserEcon.balance  - betAmount).toFixed(2));
+                await winnerEcon.save();
+                await loserEcon.save();
+            }
+
+            return i.update({ embeds: [new EmbedBuilder()
+                .setTitle('Duel Result')
                 .setDescription(
                     `${user.username} vs ${opponent.username}\n\n` +
-                    `🏆 Winner: **${winner.username}**` +
+                    `Winner: **${winner.username}**` +
                     (betAmount > 0 ? `\n\n**$${fmt(betAmount)}** transferred to winner` : '')
                 )
-                .setColor(0x2b2d31)]
+                .setColor(0x00ff00)], components: [] });
+        });
+
+        collector.on('end', (_, reason) => {
+            if (reason === 'time') {
+                msg.edit({ embeds: [new EmbedBuilder()
+                    .setTitle('Duel Expired')
+                    .setDescription(`<@${opponent.id}> didn't respond in time.`)
+                    .setColor(0x71717a)], components: [] }).catch(() => {});
+            }
         });
     }
 };
