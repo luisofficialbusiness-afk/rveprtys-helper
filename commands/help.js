@@ -16,8 +16,8 @@ module.exports = {
             .setColor(0x2b2d31)
             .addFields(
                 { name: 'Economy',      value: '`/balance` `/deposit` `/withdraw` `/give` `/work` `/daily`', inline: false },
-                { name: 'Gambling',     value: '`/coinflip` `/dice` `/slots` `/rob` `/duel`', inline: false },
-                { name: 'Stocks',       value: '`/stocks` `/buystock` `/sellstock` `/portfolio` `/stockhistory`', inline: false },
+                { name: 'Gambling',     value: '`/gamble game:slots` `/gamble game:coinflip` `/gamble game:dice` `/rob` `/duel`', inline: false },
+                { name: 'Stocks',       value: '`/stocks` `/stock buy` `/stock sell` `/stock portfolio` `/stockhistory`', inline: false },
                 { name: 'Leaderboard',  value: '`/leaderboard`', inline: false },
                 { name: 'Slave System', value: '`/buy` `/slave` `/slavepanel` `/slavelist`', inline: false }
             )

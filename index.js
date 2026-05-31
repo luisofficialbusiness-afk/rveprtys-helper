@@ -156,10 +156,11 @@ client.on('messageCreate', async message => {
         channel: message.channel,
         client,
         options: {
-            getUser:    n => opts.getUser?.(n)    ?? null,
-            getInteger: n => opts.getInteger?.(n) ?? null,
-            getString:  n => opts.getString?.(n)  ?? null,
-            getNumber:  n => opts.getNumber?.(n)  ?? null,
+            getUser:        n => opts.getUser?.(n)        ?? null,
+            getInteger:     n => opts.getInteger?.(n)     ?? null,
+            getString:      n => opts.getString?.(n)      ?? null,
+            getNumber:      n => opts.getNumber?.(n)      ?? null,
+            getSubcommand:  () => opts.getSubcommand?.()  ?? null,
         },
         reply:    d => message.reply(d),
         followUp: d => message.channel.send(d),
@@ -193,20 +194,22 @@ client.on('messageCreate', async message => {
         const choice = ['h', 'heads'].includes(args[1]?.toLowerCase()) ? 'heads'
                      : ['t', 'tails'].includes(args[1]?.toLowerCase()) ? 'tails'
                      : args[1] ?? null;
-        return client.commands.get('coinflip').execute(adapt({
-            getInteger: n => n === 'bet'    ? parseFloat(args[0]) : null,
-            getString:  n => n === 'choice' ? choice              : null,
+        return client.commands.get('gamble').execute(adapt({
+            getString:  n => n === 'game' ? 'coinflip' : n === 'choice' ? choice : null,
+            getInteger: n => n === 'bet'  ? parseFloat(args[0]) : null,
         }));
     }
 
     if (cmd === 'dice')
-        return client.commands.get('dice').execute(adapt({
-            getInteger: n => n === 'bet' ? parseFloat(args[0]) : null,
+        return client.commands.get('gamble').execute(adapt({
+            getString:  n => n === 'game' ? 'dice' : null,
+            getInteger: n => n === 'bet'  ? parseFloat(args[0]) : null,
         }));
 
     if (cmd === 'slots')
-        return client.commands.get('slots').execute(adapt({
-            getInteger: n => n === 'bet' ? parseFloat(args[0]) : null,
+        return client.commands.get('gamble').execute(adapt({
+            getString:  n => n === 'game' ? 'slots' : null,
+            getInteger: n => n === 'bet'  ? parseFloat(args[0]) : null,
         }));
 
     if (cmd === 'rob')
@@ -269,17 +272,21 @@ client.on('messageCreate', async message => {
         return client.commands.get('stocks').execute(adapt());
 
     if (cmd === 'buystock')
-        return client.commands.get('buystock').execute(adapt({
+        return client.commands.get('stock').execute(adapt({
+            getSubcommand: () => 'buy',
             getString: n => n === 'ticker' ? args[0] : n === 'shares' ? args[1] : null,
         }));
 
     if (cmd === 'sellstock')
-        return client.commands.get('sellstock').execute(adapt({
+        return client.commands.get('stock').execute(adapt({
+            getSubcommand: () => 'sell',
             getString: n => n === 'ticker' ? args[0] : n === 'shares' ? args[1] : null,
         }));
 
     if (cmd === 'portfolio' || cmd === 'port')
-        return client.commands.get('portfolio').execute(adapt());
+        return client.commands.get('stock').execute(adapt({
+            getSubcommand: () => 'portfolio',
+        }));
 
     if (cmd === 'stockhistory' || cmd === 'sh')
         return client.commands.get('stockhistory').execute(adapt({
