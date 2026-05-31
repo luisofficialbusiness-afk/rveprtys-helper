@@ -132,7 +132,7 @@ client.on('messageCreate', async message => {
         dice:        ['dice'],
         slots:       ['slots'],
         duel:        ['duel'],
-        stocks:      ['stocks', 'buystock', 'sellstock', 'portfolio', 'port', 'stockhistory', 'sh'],
+        stocks:      ['stocks', 'stock', 'stocklist', 'buystock', 'sellstock', 'portfolio', 'port', 'stockhistory', 'sh'],
         slave:       ['buy', 'outbid', 'slave', 'slavepanel', 'slavelist'],
         givemoney:   ['givemoney', 'give'],
         deposit:     ['deposit', 'dep'],
@@ -268,8 +268,36 @@ client.on('messageCreate', async message => {
     if (cmd === 'clearcooldowns')
         return client.commands.get('clearcooldowns').execute(adapt());
 
-    if (cmd === 'stocks')
-        return client.commands.get('stocks').execute(adapt());
+    if (cmd === 'stock') {
+        const sub = args.shift()?.toLowerCase();
+        if (sub === 'buy')
+            return client.commands.get('stock').execute(adapt({
+                getSubcommand: () => 'buy',
+                getString: n => n === 'ticker' ? args[0] : n === 'shares' ? args[1] : null,
+            }));
+        if (sub === 'sell')
+            return client.commands.get('stock').execute(adapt({
+                getSubcommand: () => 'sell',
+                getString: n => n === 'ticker' ? args[0] : n === 'shares' ? args[1] : null,
+            }));
+        if (sub === 'portfolio')
+            return client.commands.get('stock').execute(adapt({
+                getSubcommand: () => 'portfolio',
+            }));
+        if (sub === 'history')
+            return client.commands.get('stock').execute(adapt({
+                getSubcommand: () => 'history',
+                getString: n => n === 'ticker' ? args[0] : null,
+            }));
+        return client.commands.get('stock').execute(adapt({
+            getSubcommand: () => 'list',
+        }));
+    }
+
+    if (cmd === 'stocks' || cmd === 'stocklist')
+        return client.commands.get('stock').execute(adapt({
+            getSubcommand: () => 'list',
+        }));
 
     if (cmd === 'buystock')
         return client.commands.get('stock').execute(adapt({
@@ -289,7 +317,8 @@ client.on('messageCreate', async message => {
         }));
 
     if (cmd === 'stockhistory' || cmd === 'sh')
-        return client.commands.get('stockhistory').execute(adapt({
+        return client.commands.get('stock').execute(adapt({
+            getSubcommand: () => 'history',
             getString: n => n === 'ticker' ? args[0] : null,
         }));
 

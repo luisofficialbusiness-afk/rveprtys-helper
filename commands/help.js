@@ -17,7 +17,7 @@ module.exports = {
             .addFields(
                 { name: 'Economy',      value: '`/balance` `/deposit` `/withdraw` `/give` `/work` `/daily`', inline: false },
                 { name: 'Gambling',     value: '`/gamble game:slots` `/gamble game:coinflip` `/gamble game:dice` `/rob` `/duel`', inline: false },
-                { name: 'Stocks',       value: '`/stocks` `/stock buy` `/stock sell` `/stock portfolio` `/stockhistory`', inline: false },
+                { name: 'Stocks',       value: '`/stock list` `/stock buy` `/stock sell` `/stock portfolio` `/stock history`', inline: false },
                 { name: 'Leaderboard',  value: '`/leaderboard`', inline: false },
                 { name: 'Slave System', value: '`/slave buy` `/slave status` `/slave panel` `/slave list`', inline: false }
             )
