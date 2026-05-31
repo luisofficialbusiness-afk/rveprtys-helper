@@ -19,7 +19,7 @@ module.exports = {
                 { name: 'Gambling',     value: '`/gamble game:slots` `/gamble game:coinflip` `/gamble game:dice` `/rob` `/duel`', inline: false },
                 { name: 'Stocks',       value: '`/stocks` `/stock buy` `/stock sell` `/stock portfolio` `/stockhistory`', inline: false },
                 { name: 'Leaderboard',  value: '`/leaderboard`', inline: false },
-                { name: 'Slave System', value: '`/buy` `/slave` `/slavepanel` `/slavelist`', inline: false }
+                { name: 'Slave System', value: '`/slave buy` `/slave status` `/slave panel` `/slave list`', inline: false }
             )
             .setFooter({ text: 'Economic Bomb • All commands also work with the ? prefix' });
 

@@ -294,18 +294,25 @@ client.on('messageCreate', async message => {
         }));
 
     if (cmd === 'buy')
-        return client.commands.get('buy').execute(adapt({
+        return client.commands.get('slave').execute(adapt({
+            getSubcommand: () => 'buy',
             getUser: n => n === 'user' ? message.mentions.users.first() : null,
         }));
 
     if (cmd === 'slave')
-        return client.commands.get('slave').execute(adapt());
+        return client.commands.get('slave').execute(adapt({
+            getSubcommand: () => 'status',
+        }));
 
     if (cmd === 'slavepanel')
-        return client.commands.get('slavepanel').execute(adapt());
+        return client.commands.get('slave').execute(adapt({
+            getSubcommand: () => 'panel',
+        }));
 
     if (cmd === 'slavelist')
-        return client.commands.get('slavelist').execute(adapt());
+        return client.commands.get('slave').execute(adapt({
+            getSubcommand: () => 'list',
+        }));
 
     if (cmd === 'daily')
         return client.commands.get('daily').execute(adapt());
