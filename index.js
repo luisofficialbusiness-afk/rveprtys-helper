@@ -20,7 +20,7 @@ const Stock = require('./models/Stock');
 const Portfolio = require('./models/Portfolio');
 const User = require('./models/User');
 const Slave = require('./models/Slave');
-const { getUser } = require('./utils/economy');
+const { getUser } = require('./src/utils/economy');
 const Config = require('./models/Config');
 
 const jackpotLeaderboard = new Map();
@@ -51,9 +51,9 @@ const client = new Client({
 
 client.commands = new Collection();
 
-const commandFiles = fs.readdirSync('./commands').filter(f => f.endsWith('.js'));
+const commandFiles = fs.readdirSync('./src/commands').filter(f => f.endsWith('.js'));
 for (const file of commandFiles) {
-    const command = require(`./commands/${file}`);
+    const command = require(`./src/commands/${file}`);
     client.commands.set(command.data.name, command);
 }
 
