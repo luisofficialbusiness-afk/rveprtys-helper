@@ -1,9 +1,9 @@
 const {
     SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
 } = require('discord.js');
-const { getUser } = require('../../utils/economy');
-const { seedMarket, COMPANIES } = require('../../utils/market');
-const cooldowns = require('../../utils/cooldowns');
+const { getUser } = require('../utils/economy');
+const { seedMarket, COMPANIES } = require('../utils/market');
+const cooldowns = require('../utils/cooldowns');
 const User = require('../../models/User');
 const Stock = require('../../models/Stock');
 const Portfolio = require('../../models/Portfolio');

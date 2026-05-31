@@ -18,8 +18,8 @@ const fetch = require('node-fetch');
 const mongoose = require('mongoose');
 const Stock = require('./models/Stock');
 const Slave = require('./models/Slave');
-const { getUser } = require('./utils/economy');
-const { seedMarket, COMPANIES } = require('./utils/market');
+const { getUser } = require('./src/utils/economy');
+const { seedMarket, COMPANIES } = require('./src/utils/market');
 const Config = require('./models/Config');
 
 const PREFIX   = '?';
