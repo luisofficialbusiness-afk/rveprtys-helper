@@ -4,9 +4,9 @@ const {
 const { getUser } = require('../utils/economy');
 const { seedMarket, COMPANIES } = require('../utils/market');
 const cooldowns = require('../utils/cooldowns');
-const User = require('../models/User');
-const Stock = require('../models/Stock');
-const Portfolio = require('../models/Portfolio');
+const User = require('../../models/User');
+const Stock = require('../../models/Stock');
+const Portfolio = require('../../models/Portfolio');
 
 const OWNER_ID = '1453078748080504996';
 const isAdmin  = i => i.user.id === OWNER_ID || !!i.member?.permissions?.has('Administrator');

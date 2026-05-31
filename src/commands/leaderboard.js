@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const User = require('../models/User');
+const User = require('../../models/User');
 
 const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const PAGE_SIZE = 10;
@@ -11,24 +11,33 @@ function buildPage(users, page, mode) {
     const slice = users.slice(start, start + PAGE_SIZE);
 
     const lines = slice.map((u, i) => {
-        const pos = start + i;
+        const pos    = start + i;
         const prefix = MEDALS[pos] || `**${pos + 1}.**`;
-        if (mode === 'wallet') return `${prefix} <@${u.userId}> - Wallet: **$${fmt(u.balance)}**`;
-        if (mode === 'bank')   return `${prefix} <@${u.userId}> - Bank: **$${fmt(u.bank)}**`;
+        if (mode === 'wallet')   return `${prefix} <@${u.userId}> - Wallet: **$${fmt(u.balance)}**`;
+        if (mode === 'bank')     return `${prefix} <@${u.userId}> - Bank: **$${fmt(u.bank)}**`;
+        if (mode === 'gambling') {
+            const net = u.gamblingWinnings ?? 0;
+            return `${prefix} <@${u.userId}> - Net: **${net >= 0 ? '+' : ''}$${fmt(net)}**`;
+        }
         return `${prefix} <@${u.userId}> - Wallet: **$${fmt(u.balance)}** | Bank: **$${fmt(u.bank)}**`;
     });
 
-    const titles = { wallet: '💰 Wallet Leaderboard', bank: '🏦 Bank Leaderboard', both: '🏆 Leaderboard' };
+    const titles = {
+        wallet:   'Wallet Leaderboard',
+        bank:     'Bank Leaderboard',
+        gambling: 'Gambling Leaderboard',
+        both:     'Leaderboard',
+    };
 
     const embed = new EmbedBuilder()
         .setTitle(titles[mode] ?? titles.both)
         .setDescription(lines.join('\n') || 'No data yet.')
-        .setColor(0xFFD700)
+        .setColor(mode === 'gambling' ? 0xFF4500 : 0xFFD700)
         .setFooter({ text: `Page ${page}/${totalPages} • ${users.length} players` });
 
     const row = new ActionRowBuilder();
-    if (page > 1)            row.addComponents(new ButtonBuilder().setCustomId('lb_prev').setLabel('← Prev').setStyle(ButtonStyle.Secondary));
-    if (page < totalPages)   row.addComponents(new ButtonBuilder().setCustomId('lb_next').setLabel('Next →').setStyle(ButtonStyle.Secondary));
+    if (page > 1)          row.addComponents(new ButtonBuilder().setCustomId('lb_prev').setLabel('← Prev').setStyle(ButtonStyle.Secondary));
+    if (page < totalPages) row.addComponents(new ButtonBuilder().setCustomId('lb_next').setLabel('Next →').setStyle(ButtonStyle.Secondary));
     const components = row.components.length ? [row] : [];
 
     return { embed, components, totalPages };
@@ -37,15 +46,16 @@ function buildPage(users, page, mode) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('leaderboard')
-        .setDescription('View the top richest players')
+        .setDescription('View the top players')
         .addStringOption(option =>
             option.setName('location')
-                .setDescription('Which balance to rank by (default: both)')
+                .setDescription('Which stat to rank by (default: both)')
                 .setRequired(false)
                 .addChoices(
                     { name: 'Both (default)', value: 'both' },
                     { name: 'Wallet',         value: 'wallet' },
-                    { name: 'Bank',           value: 'bank' }
+                    { name: 'Bank',           value: 'bank' },
+                    { name: 'Gambling',       value: 'gambling' }
                 )
         ),
 
@@ -55,8 +65,9 @@ module.exports = {
         const allUsers = await User.find({ guildId: interaction.guild.id });
         if (!allUsers.length) return interaction.reply({ content: 'No data yet.', ephemeral: true });
 
-        if (mode === 'bank')   allUsers.sort((a, b) => b.bank - a.bank);
-        else if (mode === 'wallet') allUsers.sort((a, b) => b.balance - a.balance);
+        if (mode === 'bank')         allUsers.sort((a, b) => b.bank - a.bank);
+        else if (mode === 'wallet')  allUsers.sort((a, b) => b.balance - a.balance);
+        else if (mode === 'gambling') allUsers.sort((a, b) => (b.gamblingWinnings ?? 0) - (a.gamblingWinnings ?? 0));
         else allUsers.sort((a, b) => (b.balance + b.bank) - (a.balance + a.bank));
 
         let page = 1;
@@ -68,9 +79,8 @@ module.exports = {
         const collector = msg.createMessageComponentCollector({ time: 120000 });
 
         collector.on('collect', async i => {
-            if (i.user.id !== interaction.user.id) {
+            if (i.user.id !== interaction.user.id)
                 return i.reply({ content: 'Run your own `/leaderboard` to navigate pages.', ephemeral: true });
-            }
             if (i.customId === 'lb_next') page = Math.min(page + 1, totalPages);
             if (i.customId === 'lb_prev') page = Math.max(page - 1, 1);
             const { embed: e, components: c } = buildPage(allUsers, page, mode);
