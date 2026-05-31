@@ -135,7 +135,7 @@ client.on('messageCreate', async message => {
         stocks:      ['stocks', 'stock', 'stocklist', 'buystock', 'sellstock', 'portfolio', 'port', 'stockhistory', 'sh'],
         slave:       ['buy', 'outbid', 'slave', 'slavepanel', 'slavelist'],
         givemoney:   ['givemoney', 'give'],
-        deposit:     ['deposit', 'dep'],
+        deposit:     ['deposit', 'dep', 'bank'],
         withdraw:    ['withdraw', 'with'],
         leaderboard: ['leaderboard', 'lb', 'bankleaderboard', 'blb']
     };
@@ -165,23 +165,24 @@ client.on('messageCreate', async message => {
         followUp: d => message.channel.send(d),
     });
 
-    // ── Delegated commands ──────────────────────────────────────────
+    if (cmd === 'bank') {
+        const sub = args.shift()?.toLowerCase();
+        if (sub === 'deposit')  return client.commands.get('bank').execute(adapt({ getSubcommand: () => 'deposit',  getString: n => n === 'amount' ? args[0] : null }));
+        if (sub === 'withdraw') return client.commands.get('bank').execute(adapt({ getSubcommand: () => 'withdraw', getString: n => n === 'amount' ? args[0] : null }));
+        return client.commands.get('bank').execute(adapt({ getSubcommand: () => 'balance' }));
+    }
 
     if (cmd === 'balance' || cmd === 'bal')
-        return client.commands.get('balance').execute(adapt());
+        return client.commands.get('bank').execute(adapt({ getSubcommand: () => 'balance' }));
+
+    if (cmd === 'deposit' || cmd === 'dep')
+        return client.commands.get('bank').execute(adapt({ getSubcommand: () => 'deposit',  getString: n => n === 'amount' ? args[0] : null }));
+
+    if (cmd === 'withdraw' || cmd === 'with')
+        return client.commands.get('bank').execute(adapt({ getSubcommand: () => 'withdraw', getString: n => n === 'amount' ? args[0] : null }));
 
     if (cmd === 'work')
         return client.commands.get('work').execute(adapt());
-
-    if (cmd === 'deposit' || cmd === 'dep')
-        return client.commands.get('deposit').execute(adapt({
-            getString: n => n === 'amount' ? args[0] : null,
-        }));
-
-    if (cmd === 'withdraw' || cmd === 'with')
-        return client.commands.get('withdraw').execute(adapt({
-            getString: n => n === 'amount' ? args[0] : null,
-        }));
 
     if (cmd === 'givemoney' || cmd === 'give')
         return client.commands.get('give').execute(adapt({

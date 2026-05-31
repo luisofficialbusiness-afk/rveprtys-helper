@@ -15,7 +15,7 @@ module.exports = {
             .setTitle('Economic Bomb - Commands')
             .setColor(0x2b2d31)
             .addFields(
-                { name: 'Economy',      value: '`/balance` `/deposit` `/withdraw` `/give` `/work` `/daily`', inline: false },
+                { name: 'Economy',      value: '`/bank balance` `/bank deposit` `/bank withdraw` `/give` `/work` `/daily`', inline: false },
                 { name: 'Gambling',     value: '`/gamble game:slots` `/gamble game:coinflip` `/gamble game:dice` `/rob` `/duel`', inline: false },
                 { name: 'Stocks',       value: '`/stock list` `/stock buy` `/stock sell` `/stock portfolio` `/stock history`', inline: false },
                 { name: 'Leaderboard',  value: '`/leaderboard`', inline: false },
