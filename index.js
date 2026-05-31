@@ -212,6 +212,24 @@ client.on('messageCreate', async message => {
             getInteger: n => n === 'bet'  ? parseFloat(args[0]) : null,
         }));
 
+    if (cmd === 'roulette')
+        return client.commands.get('gamble').execute(adapt({
+            getString:  n => n === 'game' ? 'roulette' : n === 'choice' ? args[1] : null,
+            getInteger: n => n === 'bet'  ? parseFloat(args[0]) : null,
+        }));
+
+    if (cmd === 'blackjack' || cmd === 'bj')
+        return client.commands.get('gamble').execute(adapt({
+            getString:  n => n === 'game' ? 'blackjack' : null,
+            getInteger: n => n === 'bet'  ? parseFloat(args[0]) : null,
+        }));
+
+    if (cmd === 'highlow' || cmd === 'hl')
+        return client.commands.get('gamble').execute(adapt({
+            getString:  n => n === 'game' ? 'highlow' : null,
+            getInteger: n => n === 'bet'  ? parseFloat(args[0]) : null,
+        }));
+
     if (cmd === 'rob')
         return client.commands.get('rob').execute(adapt({
             getUser: n => n === 'target' ? message.mentions.users.first() : null,
