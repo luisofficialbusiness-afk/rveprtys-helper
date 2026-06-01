@@ -83,7 +83,7 @@ module.exports = {
             await stock.save();
 
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Stock Purchased')
+                .setTitle('📈 Stock Purchased')
                 .setColor(0x00FF99)
                 .addFields(
                     { name: 'Stock',           value: `${stock.name} (\`${ticker}\`)`, inline: true },
@@ -135,7 +135,7 @@ module.exports = {
             await stock.save();
 
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Stock Sold')
+                .setTitle('📉 Stock Sold')
                 .setColor(profit >= 0 ? 0x00FF99 : 0xFF4500)
                 .addFields(
                     { name: 'Stock',            value: `${stock.name} (\`${ticker}\`)`,            inline: true },
@@ -171,7 +171,7 @@ module.exports = {
             const totalProfit = totalValue - totalCost;
 
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle(`${interaction.user.username}'s Portfolio`)
+                .setTitle(`📊 ${interaction.user.username}'s Portfolio`)
                 .setDescription(rows.join('\n'))
                 .setColor(totalProfit >= 0 ? 0x00FF99 : 0xFF4500)
                 .addFields(
@@ -196,7 +196,7 @@ module.exports = {
             }).join('\n');
 
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Stock Market')
+                .setTitle('📈 Stock Market')
                 .setDescription(rows)
                 .setColor(0x00FF99)
                 .setFooter({ text: 'Prices update every 30 minutes' })
@@ -221,7 +221,7 @@ module.exports = {
             const overallPct    = ((overallChange / first) * 100).toFixed(2);
 
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle(`${stock.name} (\`${ticker}\`) - Price History`)
+                .setTitle(`📋 ${stock.name} (\`${ticker}\`) - Price History`)
                 .setDescription(chart || 'No history yet.')
                 .setColor(overallChange >= 0 ? 0x00FF99 : 0xFF4500)
                 .addFields(

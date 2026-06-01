@@ -20,9 +20,9 @@ module.exports = {
             const m = Math.floor((left % 3600000) / 60000);
             const s = Math.floor((left % 60000) / 1000);
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Daily Already Claimed')
-                .setDescription(`Come back in **${h}h ${m}m ${s}s**.`)
-                .setColor(0x2b2d31)], ephemeral: true });
+                .setTitle('⏳ Already Claimed')
+                .setDescription(`You already claimed your daily today.\nCome back in **${h}h ${m}m ${s}s**.`)
+                .setColor(0x71717a)], ephemeral: true });
         }
 
         const streak = user.dailyStreak && user.lastDaily && (now - user.lastDaily < 48 * 60 * 60 * 1000)
@@ -34,13 +34,14 @@ module.exports = {
         user.balance     = parseFloat((user.balance + amount).toFixed(2));
         await user.save();
 
+        const streakDisplay = streak >= 7 ? `🔥 ${streak} days` : `${streak} day${streak !== 1 ? 's' : ''}`;
+
         return interaction.reply({ embeds: [new EmbedBuilder()
-            .setTitle('Daily Reward')
-            .setDescription('You claimed your daily reward!')
+            .setTitle('🎁 Daily Reward')
             .addFields(
-                { name: 'Amount',      value: `$${fmtInt(amount)}`,                      inline: true },
-                { name: 'Streak',      value: `${streak} day${streak !== 1 ? 's' : ''}`, inline: true },
-                { name: 'New Balance', value: `$${fmt(user.balance)}`,                   inline: true }
+                { name: '💵 Amount',      value: `$${fmtInt(amount)}`,   inline: true },
+                { name: '🔥 Streak',      value: streakDisplay,           inline: true },
+                { name: '💰 New Balance', value: `$${fmt(user.balance)}`, inline: true }
             )
             .setColor(0xFFD700)
             .setFooter({ text: streak >= 7 ? 'Hot streak! Keep it going!' : 'Come back tomorrow for a streak bonus!' })] });

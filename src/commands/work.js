@@ -43,13 +43,13 @@ module.exports = {
                 try {
                     const ownerUser = await interaction.client.users.fetch(freedOwnerId);
                     await ownerUser.send({ embeds: [new EmbedBuilder()
-                        .setTitle('Slave Debt Paid Off')
+                        .setTitle('🕊️ Slave Debt Paid Off')
                         .setDescription(`<@${interaction.user.id}> has paid off their debt and is now free.`)
                         .setColor(0x00FF99)] });
                 } catch {}
                 return interaction.reply({ embeds: [new EmbedBuilder()
-                    .setTitle('You Are Free!')
-                    .setDescription(`You worked and earned **$${fmtInt(amount)}** — your debt is fully paid off!`)
+                    .setTitle('🕊️ You Are Free!')
+                    .setDescription(`You worked and earned **$${fmtInt(amount)}** — your debt is fully paid off!\n\nYou are no longer enslaved.`)
                     .setColor(0x00FF99)] });
             }
 
@@ -58,13 +58,14 @@ module.exports = {
             try {
                 const ownerUser = await interaction.client.users.fetch(slave.ownerId);
                 await ownerUser.send({ embeds: [new EmbedBuilder()
-                    .setTitle('Your Slave Worked!')
-                    .setDescription(`<@${interaction.user.id}> earned **$${fmtInt(amount)}** for you.\nRemaining debt: **$${fmt(slave.debt)}**`)
+                    .setTitle('💰 Your Slave Worked!')
+                    .setDescription(`<@${interaction.user.id}> earned **$${fmtInt(amount)}** for you.\n💸 Remaining debt: **$${fmt(slave.debt)}**`)
                     .setColor(0x2b2d31)] });
             } catch {}
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Work Complete')
-                .setDescription(`You earned **$${fmtInt(amount)}** — but it went to your owner <@${slave.ownerId}>.\n\n**Debt Remaining:** $${fmt(slave.debt)}`)
+                .setTitle('💼 Work Complete')
+                .setDescription(`You earned **$${fmtInt(amount)}** — but it went to your owner <@${slave.ownerId}>.`)
+                .addFields({ name: '💸 Debt Remaining', value: `$${fmt(slave.debt)}`, inline: true })
                 .setColor(0xFF4500)
                 .setFooter({ text: 'Keep working to pay off your debt!' })] });
         }
@@ -74,8 +75,8 @@ module.exports = {
         await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
 
         return interaction.reply({ embeds: [new EmbedBuilder()
-            .setTitle('Work Complete')
+            .setTitle('💼 Work Complete')
             .setDescription(`You earned **$${fmtInt(amount)}**`)
-            .setColor(0x00ff00)] });
+            .setColor(0x00cc44)] });
     }
 };

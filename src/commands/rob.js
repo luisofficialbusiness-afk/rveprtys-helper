@@ -55,19 +55,21 @@ module.exports = {
             await victim.save();
             await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Rob Success')
-                .setDescription(`You stole **$${fmt(amount)}** from <@${target.id}>`)
+                .setTitle('🥷 Rob Successful')
+                .setDescription(`You stole **$${fmt(amount)}** from <@${target.id}>!`)
+                .addFields({ name: '💵 Your Balance', value: `$${fmt(user.balance)}`, inline: true })
                 .setFooter({ text: `Success chance: ${Math.round(successChance * 100)}%` })
-                .setColor(0x00ff00)] });
+                .setColor(0x00cc44)] });
         } else {
             const penalty = parseFloat(Math.max(user.balance * 0.15, 200).toFixed(2));
             user.balance = parseFloat((user.balance - penalty).toFixed(2));
             await user.save();
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Rob Failed')
-                .setDescription(`You got caught and lost **$${fmt(penalty)}**`)
+                .setTitle('🚨 Caught!')
+                .setDescription(`You got caught trying to rob <@${target.id}> and lost **$${fmt(penalty)}**.`)
+                .addFields({ name: '💵 Your Balance', value: `$${fmt(user.balance)}`, inline: true })
                 .setFooter({ text: `Success chance: ${Math.round(successChance * 100)}%` })
-                .setColor(0xff0000)] });
+                .setColor(0xff3333)] });
         }
     }
 };

@@ -33,8 +33,11 @@ module.exports = {
         await receiver.save();
 
         return interaction.reply({ embeds: [new EmbedBuilder()
-            .setTitle('Transfer Complete')
-            .setDescription(`You gave **$${fmt(amount)}** to <@${target.id}>`)
-            .setColor(0x00ff00)] });
+            .setTitle('🤝 Transfer Complete')
+            .setDescription(`**$${fmt(amount)}** sent to <@${target.id}>`)
+            .addFields(
+                { name: '💵 Your Balance', value: `$${fmt(user.balance)}`, inline: true }
+            )
+            .setColor(0x00cc44)] });
     }
 };

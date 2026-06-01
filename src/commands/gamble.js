@@ -84,7 +84,6 @@ module.exports = {
         user.balance = parseFloat((user.balance - bet).toFixed(2));
 
         if (game === 'blackjack') {
-            await user.save();
             const deck = shuffledDeck();
             let playerHand = [deck.pop(), deck.pop()];
             const dealerHand = [deck.pop(), deck.pop()];
@@ -92,20 +91,22 @@ module.exports = {
             if (handTotal(playerHand) === 21 || handTotal(dealerHand) === 21) {
                 const pBJ = handTotal(playerHand) === 21, dBJ = handTotal(dealerHand) === 21;
                 let winnings = 0, result;
-                if (pBJ && dBJ) { winnings = bet;                                    result = `Both Blackjack - Push, bet refunded.`; }
-                else if (pBJ)   { winnings = parseFloat((bet * 2.5).toFixed(2));     result = `Blackjack! You won **$${fmt(winnings)}**!`; }
-                else            {                                                      result = `Dealer Blackjack. You lost **$${fmt(bet)}**.`; }
+                if (pBJ && dBJ) { winnings = bet;                                result = `Both Blackjack - Push, bet refunded.`; }
+                else if (pBJ)   { winnings = parseFloat((bet * 2.5).toFixed(2)); result = `Blackjack! You won **$${fmt(winnings)}**!`; }
+                else            {                                                  result = `Dealer Blackjack. You lost **$${fmt(bet)}**.`; }
                 user.balance = parseFloat((user.balance + winnings).toFixed(2));
                 trackWin(user, winnings, bet);
                 await user.save();
                 await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
-                return interaction.reply({ embeds: [new EmbedBuilder().setTitle('Blackjack')
+                return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🃏 Blackjack')
                     .setDescription(`Your hand: ${showHand(playerHand)} = **${handTotal(playerHand)}**\nDealer: ${showHand(dealerHand)} = **${handTotal(dealerHand)}**\n\n${result}`)
                     .setColor(winnings > bet ? 0x00ff00 : winnings > 0 ? 0xffff00 : 0xff0000)] });
             }
 
+            await user.save();
+
             const bjEmbed = (pHand, extra = '') => new EmbedBuilder()
-                .setTitle('Blackjack')
+                .setTitle('🃏 Blackjack')
                 .setDescription(`Your hand: ${showHand(pHand)} = **${handTotal(pHand)}**\nDealer shows: \`${dealerHand[0].v}${dealerHand[0].s}\` + ?\n\n${extra || 'Hit or Stand?'}`)
                 .setColor(0x2b2d31);
 
@@ -130,7 +131,7 @@ module.exports = {
                 trackWin(user, winnings, bet);
                 await user.save();
                 await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
-                const embed = new EmbedBuilder().setTitle('Blackjack')
+                const embed = new EmbedBuilder().setTitle('🃏 Blackjack')
                     .setDescription(`Your hand: ${showHand(pHand)} = **${pVal}**\nDealer: ${showHand(dHand)} = **${dVal}**\n\n${result}`)
                     .setColor(winnings > bet ? 0x00ff00 : winnings > 0 ? 0xffff00 : 0xff0000);
                 if (i) await i.update({ embeds: [embed], components: [] });
@@ -161,7 +162,7 @@ module.exports = {
             let multiplier  = 1;
 
             const hlEmbed = (card, mult, extra = '') => new EmbedBuilder()
-                .setTitle('High / Low')
+                .setTitle('🃏 High / Low')
                 .setDescription(
                     `Current card: \`${card.v}${card.s}\`\n` +
                     `Multiplier: **${mult.toFixed(2)}x** - Potential payout: **$${fmt(parseFloat((bet * mult).toFixed(2)))}**\n\n` +
@@ -182,7 +183,7 @@ module.exports = {
                 user.balance = parseFloat((user.balance + payout).toFixed(2));
                 trackWin(user, payout, bet);
                 await user.save();
-                const embed = new EmbedBuilder().setTitle('High / Low')
+                const embed = new EmbedBuilder().setTitle('🃏 High / Low')
                     .setDescription(timedOut
                         ? `Timed out - auto cashed out at **${mult.toFixed(2)}x**!\nYou received **$${fmt(payout)}**.`
                         : `Cashed out at **${mult.toFixed(2)}x**! You won **$${fmt(payout)}**!`)
@@ -204,7 +205,7 @@ module.exports = {
                     collector.stop('done');
                     trackWin(user, 0, bet);
                     await user.save();
-                    await i.update({ embeds: [new EmbedBuilder().setTitle('High / Low')
+                    await i.update({ embeds: [new EmbedBuilder().setTitle('🃏 High / Low')
                         .setDescription(`Next card: \`${nextCard.v}${nextCard.s}\` - Equal! You lost **$${fmt(bet)}**.`)
                         .setColor(0xff0000)], components: [] });
                     return;
@@ -219,7 +220,7 @@ module.exports = {
                     collector.stop('done');
                     trackWin(user, 0, bet);
                     await user.save();
-                    await i.update({ embeds: [new EmbedBuilder().setTitle('High / Low')
+                    await i.update({ embeds: [new EmbedBuilder().setTitle('🃏 High / Low')
                         .setDescription(`Next card: \`${nextCard.v}${nextCard.s}\` - Wrong! You lost **$${fmt(bet)}**.`)
                         .setColor(0xff0000)], components: [] });
                 }
@@ -233,7 +234,7 @@ module.exports = {
 
         if (game === 'slots') {
             const spin = [0, 1, 2].map(() => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
-            title = 'Slots';
+            title = '🎰 Slots';
             if (spin[0] === spin[1] && spin[1] === spin[2]) {
                 winnings = parseFloat((bet * 5).toFixed(2));
                 text = `${spin.join(' | ')}\n\nJACKPOT! You won **$${fmt(winnings)}**!`;
@@ -248,7 +249,7 @@ module.exports = {
         } else if (game === 'coinflip') {
             const pick   = choice === 'h' ? 'heads' : choice === 't' ? 'tails' : choice;
             const result = Math.random() < 0.5 ? 'heads' : 'tails';
-            title = 'Coinflip';
+            title = '🪙 Coinflip';
             if (pick === result) {
                 winnings = parseFloat((bet * 2).toFixed(2));
                 text = `Coin landed on **${result}**\nYou won **$${fmt(winnings)}**!`;
@@ -260,7 +261,7 @@ module.exports = {
         } else if (game === 'dice') {
             const userRoll = Math.floor(Math.random() * 6) + 1;
             const botRoll  = Math.floor(Math.random() * 6) + 1;
-            title = 'Dice Roll';
+            title = '🎲 Dice Roll';
             if (userRoll > botRoll) {
                 winnings = parseFloat((bet * 2).toFixed(2));
                 text  = `You: **${userRoll}** | Bot: **${botRoll}**\nYou won **$${fmt(winnings)}**!`;
@@ -278,7 +279,7 @@ module.exports = {
             const spin      = Math.floor(Math.random() * 37);
             const spinColor = spin === 0 ? 'green' : RED_NUMS.has(spin) ? 'red' : 'black';
             const emoji     = { red: '🔴', black: '⚫', green: '🟢' }[spinColor];
-            title = 'Roulette';
+            title = '🎡 Roulette';
             const numBet = parseInt(choice);
             if (!isNaN(numBet) && numBet >= 0 && numBet <= 36) {
                 if (spin === numBet) {
