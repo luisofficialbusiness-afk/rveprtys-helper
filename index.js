@@ -302,11 +302,51 @@ client.on('messageCreate', async message => {
     if (cmd === 'oremovestock')                   return run('owner', { getSubcommand: () => 'removestock',   getUser: n => n === 'user' ? message.mentions.users.first() : null, getString: n => n === 'ticker' ? args[1]?.toUpperCase() : null });
     if (cmd === 'setupmarket')                    return run('owner', { getSubcommand: () => 'setupmarket' });
 
-    if (cmd === 'search')
-        return run('search', { getString: n => n === 'location' ? args[0] : null });
+    if (cmd === 'search') {
+        const SEARCH_MAP = {
+            couch: 'couch', behindthecouch: 'couch', behindcouch: 'couch',
+            car: 'car', abandonedcar: 'car',
+            house: 'house', emptyhouse: 'house',
+            park: 'park', localpark: 'park',
+            dumpster: 'dumpster',
+            street: 'street', darkstreet: 'street',
+            alley: 'alley', backalley: 'alley',
+            abandonedbuilding: 'abandoned_building', building: 'abandoned_building',
+            bankvault: 'bank_vault', vault: 'bank_vault',
+            area51: 'area_51', area: 'area_51',
+        };
+        const raw      = args.join('').toLowerCase().replace(/[\s_-]/g, '');
+        const location = SEARCH_MAP[raw] ?? null;
+        if (!location) {
+            const valid = 'couch, car, house, park, dumpster, street, alley, abandoned building, bank vault, area 51';
+            return message.reply({ embeds: [new EmbedBuilder()
+                .setTitle('Unknown Location')
+                .setDescription(args.length ? `"${args.join(' ')}" is not a valid location.\n\n**Valid locations:** ${valid}` : `You need to provide a location.\n\n**Valid locations:** ${valid}`)
+                .setColor(0xff3333)] });
+        }
+        return run('search', { getString: n => n === 'location' ? location : null });
+    }
 
-    if (cmd === 'crime')
-        return run('crime', { getString: n => n === 'type' ? args[0] : null });
+    if (cmd === 'crime') {
+        const CRIME_MAP = {
+            pickpocket: 'pickpocket', pick: 'pickpocket',
+            shoplift: 'shoplift', lift: 'shoplift',
+            carjack: 'carjack', jack: 'carjack',
+            mugging: 'mugging', mug: 'mugging',
+            fraud: 'fraud',
+            bankrobbery: 'bank_robbery', bankrob: 'bank_robbery', robbery: 'bank_robbery', rob: 'bank_robbery',
+        };
+        const raw  = args.join('').toLowerCase().replace(/[\s_-]/g, '');
+        const type = CRIME_MAP[raw] ?? null;
+        if (!type) {
+            const valid = 'pickpocket, shoplift, carjack, mugging, fraud, bank robbery';
+            return message.reply({ embeds: [new EmbedBuilder()
+                .setTitle('Unknown Crime')
+                .setDescription(args.length ? `"${args.join(' ')}" is not a valid crime type.\n\n**Valid types:** ${valid}` : `You need to provide a crime type.\n\n**Valid types:** ${valid}`)
+                .setColor(0xff3333)] });
+        }
+        return run('crime', { getString: n => n === 'type' ? type : null });
+    }
 
     if (cmd === 'beg')
         return run('beg', {});
