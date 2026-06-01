@@ -211,15 +211,10 @@ client.on('messageCreate', async message => {
             getInteger: n => n === 'amount' ? parseInt(args[1])              : null,
         });
 
-    if (cmd === 'coinflip' || cmd === 'cf') {
-        const choice = ['h','heads'].includes(args[1]?.toLowerCase()) ? 'heads'
-                     : ['t','tails'].includes(args[1]?.toLowerCase()) ? 'tails'
-                     : args[1] ?? null;
-        return run('gamble', { getString: n => n === 'game' ? 'coinflip' : n === 'choice' ? choice : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
-    }
-    if (cmd === 'dice')      return run('gamble', { getString: n => n === 'game' ? 'dice'      : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
-    if (cmd === 'slots')     return run('gamble', { getString: n => n === 'game' ? 'slots'     : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
-    if (cmd === 'roulette')  return run('gamble', { getString: n => n === 'game' ? 'roulette'  : n === 'choice' ? args[1] : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
+    if (cmd === 'coinflip'  || cmd === 'cf') return run('gamble', { getString: n => n === 'game' ? 'coinflip'  : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
+    if (cmd === 'dice')                      return run('gamble', { getString: n => n === 'game' ? 'dice'      : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
+    if (cmd === 'slots')                     return run('gamble', { getString: n => n === 'game' ? 'slots'     : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
+    if (cmd === 'roulette')                  return run('gamble', { getString: n => n === 'game' ? 'roulette'  : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
     if (cmd === 'blackjack' || cmd === 'bj') return run('gamble', { getString: n => n === 'game' ? 'blackjack' : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
     if (cmd === 'highlow'   || cmd === 'hl') return run('gamble', { getString: n => n === 'game' ? 'highlow'   : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
 
@@ -358,10 +353,7 @@ client.on('messageCreate', async message => {
         return run('gamble', { getString: n => n === 'game' ? 'scratch' : null, getInteger: n => n === 'bet' ? parseInt(args[0]) : null });
 
     if (cmd === 'baccarat' || cmd === 'bac')
-        return run('gamble', {
-            getString:  n => n === 'game' ? 'baccarat' : n === 'choice' ? args[0]?.toLowerCase() : null,
-            getInteger: n => n === 'bet'  ? parseInt(args[1]) : null,
-        });
+        return run('gamble', { getString: n => n === 'game' ? 'baccarat' : null, getInteger: n => n === 'bet' ? parseInt(args[0]) : null });
 
     if (cmd === 'beg')
         return run('beg', {});
