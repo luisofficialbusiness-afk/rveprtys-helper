@@ -16,12 +16,12 @@ module.exports = {
         .addSubcommand(sub =>
             sub.setName('deposit')
                 .setDescription('Deposit money into your bank')
-                .addStringOption(o => o.setName('amount').setDescription('Amount to deposit, or "all"').setRequired(true))
+                .addStringOption(o => o.setName('amount').setDescription('Amount, or: all, half, 10k, 50%').setRequired(true))
         )
         .addSubcommand(sub =>
             sub.setName('withdraw')
                 .setDescription('Withdraw money from your bank')
-                .addStringOption(o => o.setName('amount').setDescription('Amount to withdraw, or "all"').setRequired(true))
+                .addStringOption(o => o.setName('amount').setDescription('Amount, or: all, half, 10k, 50%').setRequired(true))
         ),
 
     async execute(interaction) {
