@@ -211,8 +211,8 @@ client.on('messageCreate', async message => {
 
     if (cmd === 'givemoney' || cmd === 'give')
         return run('give', {
-            getUser: n => n === 'user' ? message.mentions.users.first() : null,
-            getInteger: n => n === 'amount' ? parseAmount(args[1]) : null,
+            getUser:   n => n === 'user'   ? message.mentions.users.first() : null,
+            getString: n => n === 'amount' ? args[1]                        : null,
         });
 
     if (cmd === 'coinflip' || cmd === 'cf') return run('gamble', { getString: n => n === 'game' ? 'coinflip' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
