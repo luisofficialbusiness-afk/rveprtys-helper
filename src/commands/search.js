@@ -3,22 +3,21 @@ const { getUser } = require('../utils/economy');
 const { applyDeathPenalty } = require('../utils/penalty');
 const cooldowns = require('../utils/cooldowns');
 
-const fmt    = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtInt = (n) => Number(n).toLocaleString('en-US');
+const { formatNumber } = require('../utils/format');
 
 const COOLDOWN = 30 * 60 * 1000;
 
 const LOCATIONS = {
-    couch:               { emoji: '🛋️',  min: 25,   max: 75,   deathChance: 0.05, label: 'Behind the Couch' },
-    car:                 { emoji: '🚗',  min: 100,  max: 350,  deathChance: 0.08, label: 'Abandoned Car' },
-    house:               { emoji: '🏠',  min: 75,   max: 200,  deathChance: 0.06, label: 'Empty House' },
-    park:                { emoji: '🌳',  min: 50,   max: 250,  deathChance: 0.10, label: 'Local Park' },
-    dumpster:            { emoji: '🗑️',  min: 50,   max: 300,  deathChance: 0.15, label: 'Dumpster' },
-    street:              { emoji: '🌆',  min: 100,  max: 500,  deathChance: 0.22, label: 'Dark Street' },
-    alley:               { emoji: '🌃',  min: 150,  max: 700,  deathChance: 0.30, label: 'Back Alley' },
-    abandoned_building:  { emoji: '🏚️',  min: 200,  max: 1000, deathChance: 0.40, label: 'Abandoned Building' },
-    bank_vault:          { emoji: '🏦',  min: 500,  max: 2500, deathChance: 0.55, label: 'Bank Vault' },
-    area_51:             { emoji: '👽',  min: 1000, max: 6000, deathChance: 0.70, label: 'Area 51' },
+    couch: { emoji: '🛋️', min: 25, max: 75, deathChance: 0.05, label: 'Behind the Couch' },
+    car: { emoji: '🚗', min: 100, max: 350, deathChance: 0.08, label: 'Abandoned Car' },
+    house: { emoji: '🏠', min: 75, max: 200, deathChance: 0.06, label: 'Empty House' },
+    park: { emoji: '🌳', min: 50, max: 250, deathChance: 0.10, label: 'Local Park' },
+    dumpster: { emoji: '🗑️', min: 50, max: 300, deathChance: 0.15, label: 'Dumpster' },
+    street: { emoji: '🌆', min: 100, max: 500, deathChance: 0.22, label: 'Dark Street' },
+    alley: { emoji: '🌃', min: 150, max: 700, deathChance: 0.30, label: 'Back Alley' },
+    abandoned_building: { emoji: '🏚️', min: 200, max: 1000, deathChance: 0.40, label: 'Abandoned Building' },
+    bank_vault: { emoji: '🏦', min: 500, max: 2500, deathChance: 0.55, label: 'Bank Vault' },
+    area_51: { emoji: '👽', min: 1000, max: 6000, deathChance: 0.70, label: 'Area 51' },
 };
 
 const DEATH_MESSAGES = [
@@ -45,24 +44,24 @@ module.exports = {
         .addStringOption(o =>
             o.setName('location').setDescription('Where to search').setRequired(true)
                 .addChoices(
-                    { name: 'Behind the Couch',   value: 'couch'              },
-                    { name: 'Abandoned Car',       value: 'car'                },
-                    { name: 'Empty House',         value: 'house'              },
-                    { name: 'Local Park',          value: 'park'               },
-                    { name: 'Dumpster',            value: 'dumpster'           },
-                    { name: 'Dark Street',         value: 'street'             },
-                    { name: 'Back Alley',          value: 'alley'              },
-                    { name: 'Abandoned Building',  value: 'abandoned_building' },
-                    { name: 'Bank Vault',          value: 'bank_vault'         },
-                    { name: 'Area 51',             value: 'area_51'            }
+                    { name: 'Behind the Couch', value: 'couch' },
+                    { name: 'Abandoned Car', value: 'car' },
+                    { name: 'Empty House', value: 'house' },
+                    { name: 'Local Park', value: 'park' },
+                    { name: 'Dumpster', value: 'dumpster' },
+                    { name: 'Dark Street', value: 'street' },
+                    { name: 'Back Alley', value: 'alley' },
+                    { name: 'Abandoned Building', value: 'abandoned_building' },
+                    { name: 'Bank Vault', value: 'bank_vault' },
+                    { name: 'Area 51', value: 'area_51' }
                 )
         ),
 
     async execute(interaction) {
-        const key  = interaction.options.getString('location');
-        const loc  = LOCATIONS[key];
+        const key = interaction.options.getString('location');
+        const loc = LOCATIONS[key];
         const cdKey = `${interaction.user.id}-${key}`;
-        const now  = Date.now();
+        const now = Date.now();
 
         if (cooldowns.search.has(cdKey)) {
             const exp = cooldowns.search.get(cdKey) + COOLDOWN;
@@ -79,23 +78,27 @@ module.exports = {
 
         if (Math.random() < loc.deathChance) {
             const result = await applyDeathPenalty(user);
-            const msg    = DEATH_MESSAGES[Math.floor(Math.random() * DEATH_MESSAGES.length)];
+            const msg = DEATH_MESSAGES[Math.floor(Math.random() * DEATH_MESSAGES.length)];
 
             if (result.blocked) {
-                return interaction.reply({ embeds: [new EmbedBuilder()
-                    .setTitle(`${loc.emoji} Close Call at the ${loc.label}`)
-                    .setDescription(`${msg}\n\n🛟 **Your lifesaver saved you!** No money was lost.`)
-                    .setColor(0xFFD700)] });
+                return interaction.reply({
+                    embeds: [new EmbedBuilder()
+                        .setTitle(`${loc.emoji} Close Call at the ${loc.label}`)
+                        .setDescription(`${msg}\n\n🛟 **Your lifesaver saved you!** No money was lost.`)
+                        .setColor(0xFFD700)]
+                });
             }
 
             const lostStr = result.from === 'wallet'
-                ? `**$${fmt(result.penalty)}** from your wallet (2%)`
-                : `**$${fmt(result.penalty)}** from your bank (4%)`;
+                ? `**$${formatNumber(result.penalty)}** from your wallet (2%)`
+                : `**$${formatNumber(result.penalty)}** from your bank (4%)`;
 
-            return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle(`☠️ Didn't Make It Out of the ${loc.label}`)
-                .setDescription(`${msg}\n\nYou lost ${lostStr}.`)
-                .setColor(0xff3333)] });
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle(`☠️ Didn't Make It Out of the ${loc.label}`)
+                    .setDescription(`${msg}\n\nYou lost ${lostStr}.`)
+                    .setColor(0xff3333)]
+            });
         }
 
         const amount = Math.floor(Math.random() * (loc.max - loc.min + 1)) + loc.min;
@@ -104,11 +107,13 @@ module.exports = {
 
         const findMsg = FIND_MESSAGES[Math.floor(Math.random() * FIND_MESSAGES.length)];
 
-        return interaction.reply({ embeds: [new EmbedBuilder()
-            .setTitle(`${loc.emoji} ${loc.label}`)
-            .setDescription(`${findMsg} **$${fmtInt(amount)}**!`)
-            .addFields({ name: '💵 New Balance', value: `$${fmt(user.balance)}`, inline: true })
-            .setColor(0x00cc44)
-            .setFooter({ text: `Death chance: ${Math.round(loc.deathChance * 100)}% • Cooldown: 30 minutes` })] });
+        return interaction.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle(`${loc.emoji} ${loc.label}`)
+                .setDescription(`${findMsg} **$${formatNumber(amount)}**!`)
+                .addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true })
+                .setColor(0x00cc44)
+                .setFooter({ text: `Death chance: ${Math.round(loc.deathChance * 100)}% • Cooldown: 30 minutes` })]
+        });
     }
 };

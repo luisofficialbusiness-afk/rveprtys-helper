@@ -1,11 +1,10 @@
 const Lottery = require('../../models/Lottery');
 const { getUser } = require('./economy');
 
-const TICKET_PRICES = { hourly: 200,   daily: 1000  };
-const BASE_REWARDS  = { hourly: 1000,  daily: 5000  };
+const TICKET_PRICES = { hourly: 200, daily: 1000 };
+const BASE_REWARDS = { hourly: 1000, daily: 5000 };
 
-const fmt    = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtInt = (n) => Number(n).toLocaleString('en-US');
+const { formatNumber } = require('./format');
 
 function getNextDraw(type) {
     const now = new Date();
@@ -25,7 +24,7 @@ async function getOrCreate(guildId, type) {
     if (!lottery) {
         lottery = await Lottery.create({
             guildId, type,
-            pot:    BASE_REWARDS[type],
+            pot: BASE_REWARDS[type],
             tickets: [],
             drawAt: getNextDraw(type),
         });
@@ -37,8 +36,8 @@ async function drawLottery(client, lottery) {
     const guild = await client.guilds.fetch(lottery.guildId).catch(() => null);
     if (!guild) {
         lottery.tickets = [];
-        lottery.pot     = BASE_REWARDS[lottery.type];
-        lottery.drawAt  = getNextDraw(lottery.type);
+        lottery.pot = BASE_REWARDS[lottery.type];
+        lottery.drawAt = getNextDraw(lottery.type);
         await lottery.save();
         return;
     }
@@ -52,20 +51,22 @@ async function drawLottery(client, lottery) {
 
     if (lottery.tickets.length < 2) {
         for (const t of lottery.tickets) {
-            const u      = await getUser(t.userId, lottery.guildId);
+            const u = await getUser(t.userId, lottery.guildId);
             const refund = parseFloat((t.count * TICKET_PRICES[lottery.type]).toFixed(2));
-            u.balance    = parseFloat((u.balance + refund).toFixed(2));
+            u.balance = parseFloat((u.balance + refund).toFixed(2));
             await u.save();
         }
 
-        if (ch) await ch.send({ embeds: [new EmbedBuilder()
-            .setTitle(`🎟️ ${label} Lottery - No Draw`)
-            .setDescription(`Not enough players entered (need at least **2**).\nAll tickets have been refunded.`)
-            .setColor(0x71717a)] }).catch(() => {});
+        if (ch) await ch.send({
+            embeds: [new EmbedBuilder()
+                .setTitle(`🎟️ ${label} Lottery - No Draw`)
+                .setDescription(`Not enough players entered (need at least **2**).\nAll tickets have been refunded.`)
+                .setColor(0x71717a)]
+        }).catch(() => { });
 
         lottery.tickets = [];
-        lottery.pot     = BASE_REWARDS[lottery.type];
-        lottery.drawAt  = getNextDraw(lottery.type);
+        lottery.pot = BASE_REWARDS[lottery.type];
+        lottery.drawAt = getNextDraw(lottery.type);
         await lottery.save();
         return;
     }
@@ -79,26 +80,28 @@ async function drawLottery(client, lottery) {
     }
 
     const winner = await getUser(winnerId, lottery.guildId);
-    const prize  = parseFloat(lottery.pot.toFixed(2));
+    const prize = parseFloat(lottery.pot.toFixed(2));
     winner.balance = parseFloat((winner.balance + prize).toFixed(2));
     await winner.save();
 
     const winnerTickets = lottery.tickets.find(t => t.userId === winnerId)?.count ?? 0;
 
-    if (ch) await ch.send({ embeds: [new EmbedBuilder()
-        .setTitle(`🎉 ${label} Lottery Draw!`)
-        .setDescription(`<@${winnerId}> won the lottery!`)
-        .addFields(
-            { name: '🏆 Prize',          value: `$${fmt(prize)}`,                        inline: true },
-            { name: '🎟️ Winning Tickets', value: `${fmtInt(winnerTickets)} / ${fmtInt(totalTickets)}`, inline: true },
-            { name: '👥 Players',         value: `${lottery.tickets.length}`,             inline: true },
-        )
-        .setColor(0xFFD700)
-        .setTimestamp()] }).catch(() => {});
+    if (ch) await ch.send({
+        embeds: [new EmbedBuilder()
+            .setTitle(`🎉 ${label} Lottery Draw!`)
+            .setDescription(`<@${winnerId}> won the lottery!`)
+            .addFields(
+                { name: '🏆 Prize', value: `$${formatNumber(prize)}`, inline: true },
+                { name: '🎟️ Winning Tickets', value: `${formatNumber(winnerTickets)} / ${formatNumber(totalTickets)}`, inline: true },
+                { name: '👥 Players', value: `${lottery.tickets.length}`, inline: true },
+            )
+            .setColor(0xFFD700)
+            .setTimestamp()]
+    }).catch(() => { });
 
     lottery.tickets = [];
-    lottery.pot     = BASE_REWARDS[lottery.type];
-    lottery.drawAt  = getNextDraw(lottery.type);
+    lottery.pot = BASE_REWARDS[lottery.type];
+    lottery.drawAt = getNextDraw(lottery.type);
     await lottery.save();
 }
 

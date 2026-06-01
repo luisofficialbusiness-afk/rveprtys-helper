@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const User = require('../../models/User');
 
-const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const { formatNumber } = require('../utils/format');
 const PAGE_SIZE = 10;
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -11,25 +11,25 @@ function buildPage(users, page, mode) {
     const slice = users.slice(start, start + PAGE_SIZE);
 
     const lines = slice.map((u, i) => {
-        const pos    = start + i;
+        const pos = start + i;
         const prefix = MEDALS[pos] || `**${pos + 1}.**`;
-        if (mode === 'wallet')      return `${prefix} <@${u.userId}> - Wallet: **$${fmt(u.balance)}**`;
-        if (mode === 'bank')        return `${prefix} <@${u.userId}> - Bank: **$${fmt(u.bank)}**`;
-        if (mode === 'gambling')    { const net = u.gamblingWinnings ?? 0; return `${prefix} <@${u.userId}> - Net: **${net >= 0 ? '+' : ''}$${fmt(net)}**`; }
-        if (mode === 'global')      return `${prefix} <@${u.userId}> - **$${fmt(u.balance + u.bank)}**`;
-        if (mode === 'global-bank') return `${prefix} <@${u.userId}> - Bank: **$${fmt(u.bank)}**`;
-        const first  = u.bank >= u.balance ? `Bank: **$${fmt(u.bank)}**` : `Wallet: **$${fmt(u.balance)}**`;
-        const second = u.bank >= u.balance ? `Wallet: **$${fmt(u.balance)}**` : `Bank: **$${fmt(u.bank)}**`;
+        if (mode === 'wallet') return `${prefix} <@${u.userId}> - Wallet: **$${formatNumber(u.balance)}**`;
+        if (mode === 'bank') return `${prefix} <@${u.userId}> - Bank: **$${formatNumber(u.bank)}**`;
+        if (mode === 'gambling') { const net = u.gamblingWinnings ?? 0; return `${prefix} <@${u.userId}> - Net: **${net >= 0 ? '+' : ''}$${formatNumber(net)}**`; }
+        if (mode === 'global') return `${prefix} <@${u.userId}> - **$${formatNumber(u.balance + u.bank)}**`;
+        if (mode === 'global-bank') return `${prefix} <@${u.userId}> - Bank: **$${formatNumber(u.bank)}**`;
+        const first = u.bank >= u.balance ? `Bank: **$${formatNumber(u.bank)}**` : `Wallet: **$${formatNumber(u.balance)}**`;
+        const second = u.bank >= u.balance ? `Wallet: **$${formatNumber(u.balance)}**` : `Bank: **$${formatNumber(u.bank)}**`;
         return `${prefix} <@${u.userId}> - ${first} | ${second}`;
     });
 
     const titles = {
-        wallet:       'Wallet Leaderboard',
-        bank:         'Bank Leaderboard',
-        gambling:     'Gambling Leaderboard',
-        global:       'Global Leaderboard',
+        wallet: 'Wallet Leaderboard',
+        bank: 'Bank Leaderboard',
+        gambling: 'Gambling Leaderboard',
+        global: 'Global Leaderboard',
         'global-bank': 'Global Bank Leaderboard',
-        both:         'Leaderboard',
+        both: 'Leaderboard',
     };
 
     const embed = new EmbedBuilder()
@@ -39,7 +39,7 @@ function buildPage(users, page, mode) {
         .setFooter({ text: `Page ${page}/${totalPages} • ${users.length} players` });
 
     const row = new ActionRowBuilder();
-    if (page > 1)          row.addComponents(new ButtonBuilder().setCustomId('lb_prev').setLabel('← Prev').setStyle(ButtonStyle.Secondary));
+    if (page > 1) row.addComponents(new ButtonBuilder().setCustomId('lb_prev').setLabel('← Prev').setStyle(ButtonStyle.Secondary));
     if (page < totalPages) row.addComponents(new ButtonBuilder().setCustomId('lb_next').setLabel('Next →').setStyle(ButtonStyle.Secondary));
     const components = row.components.length ? [row] : [];
 
@@ -56,11 +56,11 @@ module.exports = {
                 .setRequired(false)
                 .addChoices(
                     { name: 'Both (default)', value: 'both' },
-                    { name: 'Wallet',         value: 'wallet' },
-                    { name: 'Bank',           value: 'bank' },
-                    { name: 'Gambling',       value: 'gambling' },
-                    { name: 'Global',         value: 'global' },
-                    { name: 'Global Bank',    value: 'global-bank' }
+                    { name: 'Wallet', value: 'wallet' },
+                    { name: 'Bank', value: 'bank' },
+                    { name: 'Gambling', value: 'gambling' },
+                    { name: 'Global', value: 'global' },
+                    { name: 'Global Bank', value: 'global-bank' }
                 )
         ),
 
@@ -72,8 +72,8 @@ module.exports = {
 
         if (mode === 'global' || mode === 'global-bank') {
             const allGlobal = await User.find();
-            if (mode === 'global')      allGlobal.sort((a, b) => (b.balance + b.bank) - (a.balance + a.bank));
-            else                        allGlobal.sort((a, b) => b.bank - a.bank);
+            if (mode === 'global') allGlobal.sort((a, b) => (b.balance + b.bank) - (a.balance + a.bank));
+            else allGlobal.sort((a, b) => b.bank - a.bank);
             allUsers.length = 0;
             allUsers.push(...allGlobal);
         } else if (mode === 'bank') {
@@ -107,6 +107,6 @@ module.exports = {
             await i.update({ embeds: [e], components: c });
         });
 
-        collector.on('end', () => { msg.edit({ components: [] }).catch(() => {}); });
+        collector.on('end', () => { msg.edit({ components: [] }).catch(() => { }); });
     }
 };

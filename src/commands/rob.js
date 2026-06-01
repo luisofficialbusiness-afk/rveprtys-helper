@@ -3,7 +3,7 @@ const { getUser, anticheat } = require('../utils/economy');
 const cooldowns = require('../utils/cooldowns');
 
 const COOLDOWN = 10 * 60 * 1000;
-const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const { formatNumber } = require('../utils/format');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -15,7 +15,7 @@ module.exports = {
 
     async execute(interaction) {
         const target = interaction.options.getUser('target');
-        const now    = Date.now();
+        const now = Date.now();
 
         if (target.id === interaction.user.id)
             return interaction.reply({ content: "❌ You can't rob yourself.", ephemeral: true });
@@ -30,8 +30,8 @@ module.exports = {
         }
         cooldowns.rob.set(interaction.user.id, now);
 
-        const user   = await getUser(interaction.user.id, interaction.guild.id);
-        const victim = await getUser(target.id,           interaction.guild.id);
+        const user = await getUser(interaction.user.id, interaction.guild.id);
+        const victim = await getUser(target.id, interaction.guild.id);
 
         if (victim.balance < 50)
             return interaction.reply({ content: '❌ Target is too poor to rob.', ephemeral: true });
@@ -41,8 +41,8 @@ module.exports = {
             return interaction.reply({ content: '❌ This target is too powerful to rob.', ephemeral: true });
 
         let successChance = 0.6;
-        if (victimTotal > 1000)  successChance = 0.5;
-        if (victimTotal > 5000)  successChance = 0.4;
+        if (victimTotal > 1000) successChance = 0.5;
+        if (victimTotal > 5000) successChance = 0.4;
         if (victimTotal > 10000) successChance = 0.3;
         if (victimTotal > 25000) successChance = 0.2;
         if (victimTotal > 50000) successChance = 0.1;
@@ -50,26 +50,30 @@ module.exports = {
         if (Math.random() < successChance) {
             const amount = parseFloat(Math.min(victim.balance * (0.15 + Math.random() * 0.15), 4000).toFixed(2));
             victim.balance = parseFloat((victim.balance - amount).toFixed(2));
-            user.balance   = parseFloat((user.balance   + amount).toFixed(2));
+            user.balance = parseFloat((user.balance + amount).toFixed(2));
             await user.save();
             await victim.save();
             await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
-            return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('🥷 Rob Successful')
-                .setDescription(`You stole **$${fmt(amount)}** from <@${target.id}>!`)
-                .addFields({ name: '💵 Your Balance', value: `$${fmt(user.balance)}`, inline: true })
-                .setFooter({ text: `Success chance: ${Math.round(successChance * 100)}%` })
-                .setColor(0x00cc44)] });
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('🥷 Rob Successful')
+                    .setDescription(`You stole **$${formatNumber(amount)}** from <@${target.id}>!`)
+                    .addFields({ name: '💵 Your Balance', value: `$${formatNumber(user.balance)}`, inline: true })
+                    .setFooter({ text: `Success chance: ${Math.round(successChance * 100)}%` })
+                    .setColor(0x00cc44)]
+            });
         } else {
             const penalty = parseFloat(Math.max(user.balance * 0.15, 200).toFixed(2));
             user.balance = parseFloat((user.balance - penalty).toFixed(2));
             await user.save();
-            return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('🚨 Caught!')
-                .setDescription(`You got caught trying to rob <@${target.id}> and lost **$${fmt(penalty)}**.`)
-                .addFields({ name: '💵 Your Balance', value: `$${fmt(user.balance)}`, inline: true })
-                .setFooter({ text: `Success chance: ${Math.round(successChance * 100)}%` })
-                .setColor(0xff3333)] });
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('🚨 Caught!')
+                    .setDescription(`You got caught trying to rob <@${target.id}> and lost **$${formatNumber(penalty)}**.`)
+                    .addFields({ name: '💵 Your Balance', value: `$${formatNumber(user.balance)}`, inline: true })
+                    .setFooter({ text: `Success chance: ${Math.round(successChance * 100)}%` })
+                    .setColor(0xff3333)]
+            });
         }
     }
 };

@@ -2,15 +2,14 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUser } = require('../utils/economy');
 const cooldowns = require('../utils/cooldowns');
 
-const fmt    = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtInt = (n) => Number(n).toLocaleString('en-US');
+const { formatNumber } = require('../utils/format');
 
 const COOLDOWN = 10 * 60 * 1000;
 
 const OUTCOMES = [
-    { chance: 0.10, amount: 0,   msg: 'Everyone walked past without a second glance.' },
-    { chance: 0.25, amount: null, range: [10, 30],  msg: 'A kid tossed you their leftover lunch money.' },
-    { chance: 0.25, amount: null, range: [30, 80],  msg: 'A kind stranger stopped and handed you some cash.' },
+    { chance: 0.10, amount: 0, msg: 'Everyone walked past without a second glance.' },
+    { chance: 0.25, amount: null, range: [10, 30], msg: 'A kid tossed you their leftover lunch money.' },
+    { chance: 0.25, amount: null, range: [30, 80], msg: 'A kind stranger stopped and handed you some cash.' },
     { chance: 0.20, amount: null, range: [80, 150], msg: 'A generous person felt sorry for you.' },
     { chance: 0.12, amount: null, range: [150, 300], msg: 'Someone handed you a thick envelope.' },
     { chance: 0.08, amount: null, range: [300, 600], msg: 'A wealthy passerby took pity and was very generous.' },
@@ -52,11 +51,13 @@ module.exports = {
             await user.save();
         }
 
-        return interaction.reply({ embeds: [new EmbedBuilder()
-            .setTitle(amount > 0 ? '🙏 Someone Helped' : '😔 No Luck')
-            .setDescription(outcome.msg + (amount > 0 ? ` **+$${fmtInt(amount)}**` : ''))
-            .addFields(amount > 0 ? [{ name: '💵 New Balance', value: `$${fmt(user.balance)}`, inline: true }] : [])
-            .setColor(amount > 0 ? 0x00cc44 : 0x71717a)
-            .setFooter({ text: 'Cooldown: 10 minutes' })] });
+        return interaction.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle(amount > 0 ? '🙏 Someone Helped' : '😔 No Luck')
+                .setDescription(outcome.msg + (amount > 0 ? ` **+$${formatNumber(amount)}**` : ''))
+                .addFields(amount > 0 ? [{ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true }] : [])
+                .setColor(amount > 0 ? 0x00cc44 : 0x71717a)
+                .setFooter({ text: 'Cooldown: 10 minutes' })]
+        });
     }
 };
