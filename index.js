@@ -302,6 +302,25 @@ client.on('messageCreate', async message => {
     if (cmd === 'oremovestock')                   return run('owner', { getSubcommand: () => 'removestock',   getUser: n => n === 'user' ? message.mentions.users.first() : null, getString: n => n === 'ticker' ? args[1]?.toUpperCase() : null });
     if (cmd === 'setupmarket')                    return run('owner', { getSubcommand: () => 'setupmarket' });
 
+    if (cmd === 'search')
+        return run('search', { getString: n => n === 'location' ? args[0] : null });
+
+    if (cmd === 'crime')
+        return run('crime', { getString: n => n === 'type' ? args[0] : null });
+
+    if (cmd === 'beg')
+        return run('beg', {});
+
+    if (cmd === 'shop') {
+        const sub = args.shift()?.toLowerCase();
+        if (sub === 'buy') return run('shop', {
+            getSubcommand: () => 'buy',
+            getString:  n => n === 'item'     ? args[0]        : null,
+            getInteger: n => n === 'quantity' ? parseInt(args[1]) : null,
+        });
+        return run('shop', { getSubcommand: () => 'browse' });
+    }
+
     if (cmd === 'lottery') {
         const sub = args.shift()?.toLowerCase();
         if (sub === 'buy') return run('lottery', {

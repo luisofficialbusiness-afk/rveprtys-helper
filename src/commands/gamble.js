@@ -127,6 +127,8 @@ module.exports = {
                 else if (pVal > dVal) { winnings = parseFloat((bet * 2).toFixed(2)); result = `You win! You won **$${fmt(winnings)}**!`; }
                 else if (pVal < dVal) { result = `Dealer wins. You lost **$${fmt(bet)}**.`; }
                 else                  { winnings = bet; result = `Push - bet refunded.`; }
+                const bjBoost = (user.gamblingBoostExpires ?? 0) > Date.now();
+                if (bjBoost && winnings > bet) { winnings = parseFloat((winnings * 1.05).toFixed(2)); result += ' 🛟 *+5%*'; }
                 user.balance = parseFloat((user.balance + winnings).toFixed(2));
                 trackWin(user, winnings, bet);
                 await user.save();
@@ -179,7 +181,9 @@ module.exports = {
             const msg = await interaction.reply({ embeds: [hlEmbed(currentCard, multiplier)], components: [hlButtons(multiplier)], fetchReply: true });
 
             const cashOut = async (i, mult, timedOut = false) => {
-                const payout = parseFloat((bet * mult).toFixed(2));
+                let payout = parseFloat((bet * mult).toFixed(2));
+                const hlBoost = (user.gamblingBoostExpires ?? 0) > Date.now();
+                if (hlBoost && payout > bet) payout = parseFloat((payout * 1.05).toFixed(2));
                 user.balance = parseFloat((user.balance + payout).toFixed(2));
                 trackWin(user, payout, bet);
                 await user.save();
@@ -301,6 +305,13 @@ module.exports = {
                 return interaction.reply({ content: '❌ For roulette choose `red`, `black`, or a number 0-36.', ephemeral: true });
             }
             color = winnings ? 0x00ff00 : 0xff0000;
+        }
+
+        const boostActive = (user.gamblingBoostExpires ?? 0) > Date.now();
+        if (boostActive && winnings > bet) {
+            winnings = parseFloat((winnings * 1.05).toFixed(2));
+            const secsLeft = Math.ceil(((user.gamblingBoostExpires ?? 0) - Date.now()) / 1000);
+            text += `\n🛟 *+5% lifesaver boost (${secsLeft}s left)*`;
         }
 
         user.balance = parseFloat((user.balance + winnings).toFixed(2));
