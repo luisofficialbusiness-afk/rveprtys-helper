@@ -42,6 +42,26 @@ function trackWin(user, winnings, bet) {
     user.gamblingWinnings = parseFloat(((user.gamblingWinnings ?? 0) + winnings - bet).toFixed(2));
 }
 
+const HORSES = [
+    { name: 'Thunderbolt', emoji: '⚡', odds: 1.8  },
+    { name: 'Lucky Star',  emoji: '⭐', odds: 2.5  },
+    { name: 'Iron Hooves', emoji: '🦾', odds: 3.5  },
+    { name: 'Dark Shadow', emoji: '🌑', odds: 5.0  },
+    { name: 'Wild Spirit', emoji: '🌪️', odds: 7.5  },
+    { name: 'Long Shot',   emoji: '🎯', odds: 12.0 },
+];
+
+const SCRATCH_SYMBOLS = ['💎', '⭐', '🍀', '💰', '🎯', '❌'];
+
+function baccaratVal(card) {
+    if (['10','J','Q','K'].includes(card.v)) return 0;
+    if (card.v === 'A') return 1;
+    return parseInt(card.v);
+}
+function baccaratTotal(hand) {
+    return hand.reduce((s, c) => s + baccaratVal(c), 0) % 10;
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('gamble')
@@ -49,12 +69,16 @@ module.exports = {
         .addStringOption(o =>
             o.setName('game').setDescription('Game to play').setRequired(true)
                 .addChoices(
-                    { name: 'Slots',      value: 'slots'      },
-                    { name: 'Coinflip',   value: 'coinflip'   },
-                    { name: 'Dice',       value: 'dice'       },
-                    { name: 'Roulette',   value: 'roulette'   },
-                    { name: 'Blackjack',  value: 'blackjack'  },
-                    { name: 'High / Low', value: 'highlow'    }
+                    { name: 'Slots',        value: 'slots'      },
+                    { name: 'Coinflip',     value: 'coinflip'   },
+                    { name: 'Dice',         value: 'dice'       },
+                    { name: 'Roulette',     value: 'roulette'   },
+                    { name: 'Blackjack',    value: 'blackjack'  },
+                    { name: 'High / Low',   value: 'highlow'    },
+                    { name: 'Crash',        value: 'crash'      },
+                    { name: 'Horse Race',   value: 'horserace'  },
+                    { name: 'Scratch Card', value: 'scratch'    },
+                    { name: 'Baccarat',     value: 'baccarat'   }
                 )
         )
         .addIntegerOption(o =>
@@ -62,7 +86,7 @@ module.exports = {
         )
         .addStringOption(o =>
             o.setName('choice')
-                .setDescription('Coinflip: heads/tails | Roulette: red, black, or a number 0-36')
+                .setDescription('Coinflip: heads/tails | Roulette: red/black/0-36 | Baccarat: player/banker/tie')
                 .setRequired(false)
         ),
 
@@ -76,6 +100,9 @@ module.exports = {
 
         if (game === 'roulette' && !choice)
             return interaction.reply({ content: '❌ For roulette specify `red`, `black`, or a number 0-36 in the choice field.', ephemeral: true });
+
+        if (game === 'baccarat' && !['player','banker','tie'].includes(choice))
+            return interaction.reply({ content: '❌ For baccarat choose `player`, `banker`, or `tie` in the choice field.', ephemeral: true });
 
         const user = await getUser(interaction.user.id, interaction.guild.id);
         if (!bet || bet <= 0 || user.balance < bet)
@@ -155,6 +182,294 @@ module.exports = {
 
             collector.on('end', async (_, reason) => { if (reason !== 'done') await finish(null, playerHand); });
             return;
+        }
+
+        if (game === 'crash') {
+            await user.save();
+
+            const crashAt = parseFloat(Math.min(100, Math.max(1.01, 0.99 / (1 - Math.random()))).toFixed(2));
+            let current   = 1.00;
+            let done      = false;
+
+            const crashEmbed = (mult, extra = '') => new EmbedBuilder()
+                .setTitle('🚀 Crash')
+                .setDescription(
+                    `Multiplier: **${mult.toFixed(2)}x**\n` +
+                    `Potential payout: **$${fmt(parseFloat((bet * mult).toFixed(2)))}**\n\n` +
+                    (extra || 'Cash out before it crashes!')
+                )
+                .setColor(mult < 2 ? 0x2ecc71 : mult < 5 ? 0xf1c40f : 0xe74c3c);
+
+            const cashBtn = (mult) => new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('crash_cashout')
+                    .setLabel(`Cash Out (${mult.toFixed(2)}x)`)
+                    .setStyle(ButtonStyle.Success)
+            );
+
+            const msg = await interaction.reply({
+                embeds: [crashEmbed(current)],
+                components: [cashBtn(current)],
+                fetchReply: true,
+            });
+
+            const collector = msg.createMessageComponentCollector({
+                filter: i => i.user.id === interaction.user.id,
+                time: 60000,
+            });
+
+            const interval = setInterval(async () => {
+                if (done) { clearInterval(interval); return; }
+                current = parseFloat((current * 1.08).toFixed(2));
+                if (current >= crashAt) {
+                    done = true;
+                    clearInterval(interval);
+                    collector.stop('crashed');
+                    trackWin(user, 0, bet);
+                    await user.save();
+                    await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+                    await msg.edit({
+                        embeds: [new EmbedBuilder()
+                            .setTitle('🚀 Crash')
+                            .setDescription(`Crashed at **${crashAt.toFixed(2)}x**!\nYou lost **$${fmt(bet)}**.`)
+                            .setColor(0xff0000)],
+                        components: [],
+                    }).catch(() => {});
+                } else {
+                    await msg.edit({ embeds: [crashEmbed(current)], components: [cashBtn(current)] }).catch(() => {});
+                }
+            }, 1000);
+
+            collector.on('collect', async i => {
+                if (i.customId !== 'crash_cashout' || done) return;
+                done = true;
+                clearInterval(interval);
+                collector.stop('done');
+                let payout = parseFloat((bet * current).toFixed(2));
+                let note   = '';
+                if ((user.gamblingBoostExpires ?? 0) > Date.now() && payout > bet) {
+                    payout = parseFloat((payout * 1.05).toFixed(2));
+                    note   = '\n🛟 *+5% lifesaver boost*';
+                }
+                user.balance = parseFloat((user.balance + payout).toFixed(2));
+                trackWin(user, payout, bet);
+                await user.save();
+                await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+                await i.update({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('🚀 Crash')
+                        .setDescription(`Cashed out at **${current.toFixed(2)}x**! You won **$${fmt(payout)}**!${note}`)
+                        .addFields({ name: '💵 New Balance', value: `$${fmt(user.balance)}`, inline: true })
+                        .setColor(0x00ff00)],
+                    components: [],
+                });
+            });
+
+            collector.on('end', async (_, reason) => {
+                if (reason !== 'done' && reason !== 'crashed' && !done) {
+                    done = true;
+                    clearInterval(interval);
+                    const payout = parseFloat((bet * current).toFixed(2));
+                    user.balance = parseFloat((user.balance + payout).toFixed(2));
+                    trackWin(user, payout, bet);
+                    await user.save();
+                    await msg.edit({
+                        embeds: [new EmbedBuilder()
+                            .setTitle('🚀 Crash')
+                            .setDescription(`Timed out - auto cashed out at **${current.toFixed(2)}x**! You received **$${fmt(payout)}**.`)
+                            .setColor(0xffff00)],
+                        components: [],
+                    }).catch(() => {});
+                }
+            });
+
+            return;
+        }
+
+        if (game === 'horserace') {
+            await user.save();
+
+            const horseList = HORSES.map(h => `${h.emoji} **${h.name}** - ${h.odds}x`).join('\n');
+
+            const rows = [
+                new ActionRowBuilder().addComponents(
+                    HORSES.slice(0, 3).map((h, i) =>
+                        new ButtonBuilder()
+                            .setCustomId(`horse_${i}`)
+                            .setLabel(`${h.name} (${h.odds}x)`)
+                            .setStyle(ButtonStyle.Primary)
+                    )
+                ),
+                new ActionRowBuilder().addComponents(
+                    HORSES.slice(3).map((h, i) =>
+                        new ButtonBuilder()
+                            .setCustomId(`horse_${i + 3}`)
+                            .setLabel(`${h.name} (${h.odds}x)`)
+                            .setStyle(ButtonStyle.Primary)
+                    )
+                ),
+            ];
+
+            const msg = await interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('🏇 Horse Race')
+                    .setDescription(`**Pick your horse:**\n\n${horseList}\n\nBet: **$${fmt(bet)}**`)
+                    .setColor(0x2b2d31)],
+                components: rows,
+                fetchReply: true,
+            });
+
+            const collector = msg.createMessageComponentCollector({
+                filter: i => i.user.id === interaction.user.id,
+                time: 30000,
+                max: 1,
+            });
+
+            collector.on('collect', async i => {
+                const idx  = parseInt(i.customId.split('_')[1]);
+                const pick = HORSES[idx];
+
+                const weights  = HORSES.map(h => 1 / h.odds);
+                const total    = weights.reduce((a, b) => a + b, 0);
+                let r          = Math.random() * total;
+                let winnerIdx  = HORSES.length - 1;
+                for (let j = 0; j < weights.length; j++) { r -= weights[j]; if (r <= 0) { winnerIdx = j; break; } }
+                const winner   = HORSES[winnerIdx];
+
+                const raceLines = HORSES.map((h, j) =>
+                    `${j === winnerIdx ? '🥇' : '   '} ${h.emoji} ${h.name}`
+                ).join('\n');
+
+                let winnings = 0, resultText;
+                if (winnerIdx === idx) {
+                    winnings   = parseFloat((bet * pick.odds).toFixed(2));
+                    resultText = `Your horse **${pick.name}** won! You won **$${fmt(winnings)}**!`;
+                } else {
+                    resultText = `**${winner.name}** won the race. Your horse **${pick.name}** lost **$${fmt(bet)}**.`;
+                }
+
+                if ((user.gamblingBoostExpires ?? 0) > Date.now() && winnings > bet) {
+                    winnings   = parseFloat((winnings * 1.05).toFixed(2));
+                    resultText += '\n🛟 *+5% lifesaver boost*';
+                }
+                user.balance = parseFloat((user.balance + winnings).toFixed(2));
+                trackWin(user, winnings, bet);
+                await user.save();
+                await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+
+                await i.update({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('🏇 Horse Race Results')
+                        .setDescription(`${raceLines}\n\n${resultText}`)
+                        .addFields({ name: '💵 New Balance', value: `$${fmt(user.balance)}`, inline: true })
+                        .setColor(winnings > 0 ? 0x00ff00 : 0xff0000)],
+                    components: [],
+                });
+            });
+
+            collector.on('end', async (collected, reason) => {
+                if (reason === 'time') {
+                    user.balance = parseFloat((user.balance + bet).toFixed(2));
+                    await user.save();
+                    await msg.edit({
+                        embeds: [new EmbedBuilder()
+                            .setTitle('🏇 Horse Race')
+                            .setDescription('You took too long to pick a horse. Bet refunded.')
+                            .setColor(0xffff00)],
+                        components: [],
+                    }).catch(() => {});
+                }
+            });
+
+            return;
+        }
+
+        if (game === 'scratch') {
+            const grid     = Array(3).fill(null).map(() => SCRATCH_SYMBOLS[Math.floor(Math.random() * SCRATCH_SYMBOLS.length)]);
+            const counts   = {};
+            grid.forEach(s => counts[s] = (counts[s] || 0) + 1);
+            const maxMatch = Math.max(...Object.values(counts));
+
+            let scratchWinnings = 0, scratchLine, scratchColor;
+            if (maxMatch === 3) {
+                scratchWinnings = parseFloat((bet * 10).toFixed(2));
+                scratchLine     = `JACKPOT! Three of a kind! You won **$${fmt(scratchWinnings)}**!`;
+                scratchColor    = 0xFFD700;
+            } else if (maxMatch === 2) {
+                scratchWinnings = parseFloat((bet * 2.5).toFixed(2));
+                scratchLine     = `Two of a kind! You won **$${fmt(scratchWinnings)}**!`;
+                scratchColor    = 0x00ff00;
+            } else {
+                scratchLine  = `No match. You lost **$${fmt(bet)}**.`;
+                scratchColor = 0xff0000;
+            }
+
+            if ((user.gamblingBoostExpires ?? 0) > Date.now() && scratchWinnings > bet) {
+                scratchWinnings = parseFloat((scratchWinnings * 1.05).toFixed(2));
+                scratchLine    += '\n🛟 *+5% lifesaver boost*';
+            }
+            user.balance = parseFloat((user.balance + scratchWinnings).toFixed(2));
+            trackWin(user, scratchWinnings, bet);
+            await user.save();
+            await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+
+            return interaction.reply({ embeds: [new EmbedBuilder()
+                .setTitle('🎟️ Scratch Card')
+                .setDescription(`${grid.join(' | ')}\n\n${scratchLine}`)
+                .addFields({ name: '💵 New Balance', value: `$${fmt(user.balance)}`, inline: true })
+                .setColor(scratchColor)] });
+        }
+
+        if (game === 'baccarat') {
+            const deck = shuffledDeck();
+            let pHand  = [deck.pop(), deck.pop()];
+            let bHand  = [deck.pop(), deck.pop()];
+            let pTotal = baccaratTotal(pHand);
+            let bTotal = baccaratTotal(bHand);
+
+            if (pTotal < 8 && bTotal < 8) {
+                if (pTotal <= 5) pHand.push(deck.pop());
+                if (bTotal <= 5) bHand.push(deck.pop());
+                pTotal = baccaratTotal(pHand);
+                bTotal = baccaratTotal(bHand);
+            }
+
+            const winner = pTotal > bTotal ? 'player' : bTotal > pTotal ? 'banker' : 'tie';
+
+            let bacWinnings = 0, bacLine;
+            if (winner === 'tie' && choice !== 'tie') {
+                bacWinnings = bet;
+                bacLine     = `It's a **tie**! Your bet is pushed back.`;
+            } else if (choice === winner) {
+                if (choice === 'player')  bacWinnings = parseFloat((bet * 2).toFixed(2));
+                else if (choice === 'banker') bacWinnings = parseFloat((bet * 1.95).toFixed(2));
+                else                      bacWinnings = parseFloat((bet * 9).toFixed(2));
+                bacLine = `You bet on **${choice}** and won **$${fmt(bacWinnings)}**!`;
+            } else {
+                bacLine = `**${winner.charAt(0).toUpperCase() + winner.slice(1)}** wins. You lost **$${fmt(bet)}**.`;
+            }
+
+            if ((user.gamblingBoostExpires ?? 0) > Date.now() && bacWinnings > bet) {
+                bacWinnings = parseFloat((bacWinnings * 1.05).toFixed(2));
+                bacLine    += '\n🛟 *+5% lifesaver boost*';
+            }
+            user.balance = parseFloat((user.balance + bacWinnings).toFixed(2));
+            trackWin(user, bacWinnings, bet);
+            await user.save();
+            await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+
+            return interaction.reply({ embeds: [new EmbedBuilder()
+                .setTitle('🎰 Baccarat')
+                .setDescription(
+                    `**Player:** ${showHand(pHand)} = **${pTotal}**\n` +
+                    `**Banker:** ${showHand(bHand)} = **${bTotal}**\n\n` +
+                    bacLine
+                )
+                .addFields(
+                    { name: '💵 New Balance', value: `$${fmt(user.balance)}`, inline: true },
+                    { name: '🎯 You Bet On',  value: choice,                  inline: true },
+                )
+                .setColor(bacWinnings > bet ? 0x00ff00 : bacWinnings > 0 ? 0xffff00 : 0xff0000)] });
         }
 
         if (game === 'highlow') {

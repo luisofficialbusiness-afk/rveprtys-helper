@@ -348,6 +348,21 @@ client.on('messageCreate', async message => {
         return run('crime', { getString: n => n === 'type' ? type : null });
     }
 
+    if (cmd === 'crash')
+        return run('gamble', { getString: n => n === 'game' ? 'crash' : null, getInteger: n => n === 'bet' ? parseInt(args[0]) : null });
+
+    if (cmd === 'horserace' || cmd === 'race')
+        return run('gamble', { getString: n => n === 'game' ? 'horserace' : null, getInteger: n => n === 'bet' ? parseInt(args[0]) : null });
+
+    if (cmd === 'scratch')
+        return run('gamble', { getString: n => n === 'game' ? 'scratch' : null, getInteger: n => n === 'bet' ? parseInt(args[0]) : null });
+
+    if (cmd === 'baccarat' || cmd === 'bac')
+        return run('gamble', {
+            getString:  n => n === 'game' ? 'baccarat' : n === 'choice' ? args[0]?.toLowerCase() : null,
+            getInteger: n => n === 'bet'  ? parseInt(args[1]) : null,
+        });
+
     if (cmd === 'beg')
         return run('beg', {});
 
