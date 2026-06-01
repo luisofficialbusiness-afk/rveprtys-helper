@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUser } = require('../utils/economy');
 
-const { fmt, fmtInt } = require('../utils/fmt');
+const { formatNumber } = require('../utils/format');
 
 const ITEMS = {
     lifesaver: {
@@ -33,13 +33,13 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        const sub  = interaction.options.getSubcommand();
+        const sub = interaction.options.getSubcommand();
         const user = await getUser(interaction.user.id, interaction.guild.id);
 
         if (sub === 'browse') {
             const shopLines = Object.entries(ITEMS).map(([key, item]) => {
                 const owned = user.inventory?.find(i => i.item === key)?.quantity ?? 0;
-                return `${item.emoji} **${item.name}** - $${fmtInt(item.price)}\n> ${item.description}\n> You own: **${owned}**`;
+                return `${item.emoji} **${item.name}** - $${formatNumber(item.price)}\n> ${item.description}\n> You own: **${owned}**`;
             }).join('\n\n');
 
             const invLines = user.inventory?.length
@@ -49,24 +49,26 @@ module.exports = {
                 }).join('\n')
                 : 'Your inventory is empty.';
 
-            return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('🏪 Shop')
-                .addFields(
-                    { name: '🛒 Available Items', value: shopLines,  inline: false },
-                    { name: '🎒 Your Inventory',  value: invLines,   inline: false },
-                )
-                .setColor(0x5865F2)
-                .setFooter({ text: 'Use /shop buy <item> to purchase' })] });
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('🏪 Shop')
+                    .addFields(
+                        { name: '🛒 Available Items', value: shopLines, inline: false },
+                        { name: '🎒 Your Inventory', value: invLines, inline: false },
+                    )
+                    .setColor(0x5865F2)
+                    .setFooter({ text: 'Use /shop buy <item> to purchase' })]
+            });
         }
 
         if (sub === 'buy') {
-            const key      = interaction.options.getString('item');
+            const key = interaction.options.getString('item');
             const quantity = interaction.options.getInteger('quantity') ?? 1;
-            const item     = ITEMS[key];
-            const total    = item.price * quantity;
+            const item = ITEMS[key];
+            const total = item.price * quantity;
 
             if (user.balance < total)
-                return interaction.reply({ content: `❌ You need **$${fmt(total)}** but only have **$${fmt(user.balance)}**.`, ephemeral: true });
+                return interaction.reply({ content: `❌ You need **$${formatNumber(total)}** but only have **$${formatNumber(user.balance)}**.`, ephemeral: true });
 
             user.balance = parseFloat((user.balance - total).toFixed(2));
 
@@ -82,14 +84,16 @@ module.exports = {
 
             const owned = user.inventory.find(i => i.item === key)?.quantity ?? quantity;
 
-            return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle(`${item.emoji} Purchase Successful`)
-                .setDescription(`You bought **${quantity}x ${item.name}** for **$${fmt(total)}**.`)
-                .addFields(
-                    { name: '💵 Balance',   value: `$${fmt(user.balance)}`, inline: true },
-                    { name: '🎒 Now Owned', value: `${owned}x`,             inline: true },
-                )
-                .setColor(0x00cc44)] });
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle(`${item.emoji} Purchase Successful`)
+                    .setDescription(`You bought **${quantity}x ${item.name}** for **$${formatNumber(total)}**.`)
+                    .addFields(
+                        { name: '💵 Balance', value: `$${formatNumber(user.balance)}`, inline: true },
+                        { name: '🎒 Now Owned', value: `${owned}x`, inline: true },
+                    )
+                    .setColor(0x00cc44)]
+            });
         }
     }
 };

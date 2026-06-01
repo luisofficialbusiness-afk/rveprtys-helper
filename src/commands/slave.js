@@ -3,7 +3,7 @@ const { getUser } = require('../utils/economy');
 const Slave = require('../../models/Slave');
 const activeAuctions = require('../utils/activeAuctions');
 
-const { fmt } = require('../utils/fmt');
+const { formatNumber } = require('../utils/format');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -59,7 +59,7 @@ module.exports = {
             const buyPrice = parseFloat((targetEcon.balance * 2).toFixed(2));
             if (buyPrice <= 0) return interaction.reply({ content: '❌ This person has no balance to determine a price.', ephemeral: true });
             if (buyer.balance < buyPrice)
-                return interaction.reply({ content: `❌ You need **$${fmt(buyPrice)}** but only have **$${fmt(buyer.balance)}**.`, ephemeral: true });
+                return interaction.reply({ content: `❌ You need **$${formatNumber(buyPrice)}** but only have **$${formatNumber(buyer.balance)}**.`, ephemeral: true });
 
             activeAuctions.set(auctionKey, {
                 type: 'buy', slaveId: target.id, sellerId: null,
@@ -70,8 +70,8 @@ module.exports = {
             await interaction.reply({ embeds: [new EmbedBuilder()
                 .setTitle('🔨 Auction Started!')
                 .setDescription(
-                    `<@${interaction.user.id}> wants to buy <@${target.id}> for **$${fmt(buyPrice)}**!\n\n` +
-                    `<@${target.id}> you have **2 minutes** to escape by using \`/slave outbid\` with more than **$${fmt(buyPrice)}**.`
+                    `<@${interaction.user.id}> wants to buy <@${target.id}> for **$${formatNumber(buyPrice)}**!\n\n` +
+                    `<@${target.id}> you have **2 minutes** to escape by using \`/slave outbid\` with more than **$${formatNumber(buyPrice)}**.`
                 )
                 .setColor(0xFF4500).setTimestamp()] });
 
@@ -94,13 +94,13 @@ module.exports = {
                 const ch = await interaction.client.channels.fetch(current.channelId).catch(() => null);
                 if (ch) await ch.send({ embeds: [new EmbedBuilder()
                     .setTitle('⛓️ Purchase Complete!')
-                    .setDescription(`<@${current.currentBidderId}> bought <@${target.id}> for **$${fmt(current.currentBid)}**!\n<@${target.id}> must earn **$${fmt(slave.debt)}** to be free.`)
+                    .setDescription(`<@${current.currentBidderId}> bought <@${target.id}> for **$${formatNumber(current.currentBid)}**!\n<@${target.id}> must earn **$${formatNumber(slave.debt)}** to be free.`)
                     .setColor(0xFF0000).setTimestamp()] });
 
                 try {
                     await target.send({ embeds: [new EmbedBuilder()
                         .setTitle('You Have Been Bought!')
-                        .setDescription(`<@${current.currentBidderId}> purchased you for **$${fmt(current.currentBid)}**. You must earn **$${fmt(slave.debt)}** to be free.`)
+                        .setDescription(`<@${current.currentBidderId}> purchased you for **$${formatNumber(current.currentBid)}**. You must earn **$${formatNumber(slave.debt)}** to be free.`)
                         .setColor(0xFF0000)] });
                 } catch {}
             }, 120000);
@@ -129,7 +129,7 @@ module.exports = {
                 .setTitle('🔨 Slave Auction!')
                 .setDescription(
                     `<@${interaction.user.id}> is selling <@${target.id}>!\n\n` +
-                    `**Starting bid:** $${fmt(startingBid)}\n` +
+                    `**Starting bid:** $${formatNumber(startingBid)}\n` +
                     `Use \`/slave outbid <amount>\` to place a bid. Auction ends in **2 minutes**.`
                 )
                 .setColor(0xFF4500).setTimestamp()] });
@@ -165,9 +165,9 @@ module.exports = {
                 if (ch) await ch.send({ embeds: [new EmbedBuilder()
                     .setTitle('⛓️ Auction Complete!')
                     .setDescription(
-                        `<@${current.currentBidderId}> won the auction for <@${current.slaveId}> with **$${fmt(current.currentBid)}**!\n` +
-                        `<@${current.sellerId}> received **$${fmt(current.currentBid)}**.\n` +
-                        `<@${current.slaveId}> must earn **$${fmt(slave.debt)}** to be free.`
+                        `<@${current.currentBidderId}> won the auction for <@${current.slaveId}> with **$${formatNumber(current.currentBid)}**!\n` +
+                        `<@${current.sellerId}> received **$${formatNumber(current.currentBid)}**.\n` +
+                        `<@${current.slaveId}> must earn **$${formatNumber(slave.debt)}** to be free.`
                     )
                     .setColor(0xFF0000).setTimestamp()] });
 
@@ -175,7 +175,7 @@ module.exports = {
                     const slaveUser = await interaction.client.users.fetch(current.slaveId);
                     await slaveUser.send({ embeds: [new EmbedBuilder()
                         .setTitle('You Have Been Sold!')
-                        .setDescription(`<@${current.sellerId}> sold you to <@${current.currentBidderId}> for **$${fmt(current.currentBid)}**. You must earn **$${fmt(slave.debt)}** to be free.`)
+                        .setDescription(`<@${current.sellerId}> sold you to <@${current.currentBidderId}> for **$${formatNumber(current.currentBid)}**. You must earn **$${formatNumber(slave.debt)}** to be free.`)
                         .setColor(0xFF0000)] });
                 } catch {}
             }, 120000);
@@ -194,15 +194,15 @@ module.exports = {
                 if (auction.type === 'buy') {
                     if (interaction.user.id !== auction.slaveId) continue;
                     if (amount <= auction.currentBid)
-                        return interaction.reply({ content: `❌ You need more than **$${fmt(auction.currentBid)}**.`, ephemeral: true });
+                        return interaction.reply({ content: `❌ You need more than **$${formatNumber(auction.currentBid)}**.`, ephemeral: true });
                     if (bidder.balance < amount)
-                        return interaction.reply({ content: `❌ You don't have **$${fmt(amount)}**.`, ephemeral: true });
+                        return interaction.reply({ content: `❌ You don't have **$${formatNumber(amount)}**.`, ephemeral: true });
                     activeAuctions.delete(auctionKey);
                     bidder.balance = parseFloat((bidder.balance - amount).toFixed(2));
                     await bidder.save();
                     return interaction.reply({ embeds: [new EmbedBuilder()
                         .setTitle('🛡️ Purchase Blocked!')
-                        .setDescription(`<@${interaction.user.id}> paid **$${fmt(amount)}** and avoided being bought! Remaining: **$${fmt(bidder.balance)}**`)
+                        .setDescription(`<@${interaction.user.id}> paid **$${formatNumber(amount)}** and avoided being bought! Remaining: **$${formatNumber(bidder.balance)}**`)
                         .setColor(0x00FF99)] });
                 }
 
@@ -212,15 +212,15 @@ module.exports = {
                     if (interaction.user.id === auction.slaveId)
                         return interaction.reply({ content: "❌ You can't bid to buy yourself.", ephemeral: true });
                     if (amount <= auction.currentBid)
-                        return interaction.reply({ content: `❌ Must bid more than **$${fmt(auction.currentBid)}**.`, ephemeral: true });
+                        return interaction.reply({ content: `❌ Must bid more than **$${formatNumber(auction.currentBid)}**.`, ephemeral: true });
                     if (bidder.balance < amount)
-                        return interaction.reply({ content: `❌ You don't have **$${fmt(amount)}**.`, ephemeral: true });
+                        return interaction.reply({ content: `❌ You don't have **$${formatNumber(amount)}**.`, ephemeral: true });
                     auction.currentBid      = amount;
                     auction.currentBidderId = interaction.user.id;
                     activeAuctions.set(auctionKey, auction);
                     return interaction.reply({ embeds: [new EmbedBuilder()
                         .setTitle('💰 Bid Placed!')
-                        .setDescription(`<@${interaction.user.id}> is now the highest bidder at **$${fmt(amount)}** for <@${auction.slaveId}>!`)
+                        .setDescription(`<@${interaction.user.id}> is now the highest bidder at **$${formatNumber(amount)}** for <@${auction.slaveId}>!`)
                         .setColor(0x00FF99)] });
                 }
             }
@@ -235,8 +235,8 @@ module.exports = {
                 .setTitle('⛓️ Your Slave Status')
                 .setDescription(`You are owned by <@${slave.ownerId}>`)
                 .addFields(
-                    { name: 'Debt Remaining',         value: `$${fmt(slave.debt)}`,        inline: true },
-                    { name: 'Total Earned for Owner', value: `$${fmt(slave.totalEarned)}`, inline: true }
+                    { name: 'Debt Remaining',         value: `$${formatNumber(slave.debt)}`,        inline: true },
+                    { name: 'Total Earned for Owner', value: `$${formatNumber(slave.totalEarned)}`, inline: true }
                 )
                 .setColor(0xFF0000)
                 .setFooter({ text: 'Keep working to pay off your debt!' })
@@ -252,9 +252,9 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setTitle(`Slave: <@${slave.userId}>`)
                     .addFields(
-                        { name: 'Debt Remaining',       value: `$${fmt(slave.debt)}`,        inline: true },
-                        { name: 'Total Earned for You', value: `$${fmt(slave.totalEarned)}`, inline: true },
-                        { name: 'Their Balance',        value: `$${fmt(slaveEcon.balance)}`, inline: true }
+                        { name: 'Debt Remaining',       value: `$${formatNumber(slave.debt)}`,        inline: true },
+                        { name: 'Total Earned for You', value: `$${formatNumber(slave.totalEarned)}`, inline: true },
+                        { name: 'Their Balance',        value: `$${formatNumber(slaveEcon.balance)}`, inline: true }
                     )
                     .setColor(0xFF4500).setTimestamp();
                 const row = new ActionRowBuilder().addComponents(

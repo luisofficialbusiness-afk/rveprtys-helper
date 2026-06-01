@@ -9,7 +9,7 @@ const Stock = require('../../models/Stock');
 const Portfolio = require('../../models/Portfolio');
 
 const { OWNER_ID, isAdmin } = require('../utils/auth');
-const { fmt } = require('../utils/fmt');
+const { formatNumber } = require('../utils/format');
 
 const bountyMap = new Map();
 
@@ -145,7 +145,7 @@ module.exports = {
             const user   = await getUser(target.id, interaction.guild.id);
             user.balance = parseFloat((user.balance + amount).toFixed(2));
             await user.save();
-            return interaction.reply({ content: `✅ Gave **$${fmt(amount)}** to <@${target.id}>`, ephemeral: true });
+            return interaction.reply({ content: `✅ Gave **$${formatNumber(amount)}** to <@${target.id}>`, ephemeral: true });
         }
 
         if (sub === 'setbalance') {
@@ -154,7 +154,7 @@ module.exports = {
             const user   = await getUser(target.id, interaction.guild.id);
             user.balance = amount;
             await user.save();
-            return interaction.reply({ content: `✅ Set <@${target.id}>'s wallet to **$${fmt(amount)}**`, ephemeral: true });
+            return interaction.reply({ content: `✅ Set <@${target.id}>'s wallet to **$${formatNumber(amount)}**`, ephemeral: true });
         }
 
         if (sub === 'setbank') {
@@ -163,7 +163,7 @@ module.exports = {
             const user   = await getUser(target.id, interaction.guild.id);
             user.bank = amount;
             await user.save();
-            return interaction.reply({ content: `✅ Set <@${target.id}>'s bank to **$${fmt(amount)}**`, ephemeral: true });
+            return interaction.reply({ content: `✅ Set <@${target.id}>'s bank to **$${formatNumber(amount)}**`, ephemeral: true });
         }
 
         if (sub === 'stats') {
@@ -174,8 +174,8 @@ module.exports = {
                 .setTitle('📊 Economy Stats')
                 .addFields(
                     { name: 'Total Players', value: `${users.length}`, inline: true },
-                    { name: 'Total Money',   value: `$${fmt(totalMoney)}`, inline: true },
-                    { name: 'Richest',       value: richest ? `<@${richest.userId}> ($${fmt(richest.balance + richest.bank)})` : 'None', inline: true }
+                    { name: 'Total Money',   value: `$${formatNumber(totalMoney)}`, inline: true },
+                    { name: 'Richest',       value: richest ? `<@${richest.userId}> ($${formatNumber(richest.balance + richest.bank)})` : 'None', inline: true }
                 )
                 .setColor(0x2b2d31)] });
         }
@@ -186,8 +186,8 @@ module.exports = {
             return interaction.reply({ embeds: [new EmbedBuilder()
                 .setTitle('👤 User Info')
                 .addFields(
-                    { name: 'Wallet', value: `$${fmt(user.balance)}`, inline: true },
-                    { name: 'Bank',   value: `$${fmt(user.bank)}`,    inline: true }
+                    { name: 'Wallet', value: `$${formatNumber(user.balance)}`, inline: true },
+                    { name: 'Bank',   value: `$${formatNumber(user.bank)}`,    inline: true }
                 )
                 .setColor(0x2b2d31)] });
         }
@@ -201,7 +201,7 @@ module.exports = {
             await winner.save();
             return interaction.reply({ embeds: [new EmbedBuilder()
                 .setTitle('💰 Jackpot Drop')
-                .setDescription(`<@${winner.userId}> won **$${fmt(amount)}**!`)
+                .setDescription(`<@${winner.userId}> won **$${formatNumber(amount)}**!`)
                 .setColor(0x00ff00)] });
         }
 
@@ -229,7 +229,7 @@ module.exports = {
                 await stock.save();
                 const diff = newPrice - oldPrice;
                 const pct  = ((diff / oldPrice) * 100).toFixed(2);
-                results.push(`${diff >= 0 ? '▲' : '▼'} \`${stock.ticker}\` $${fmt(oldPrice)} - $${fmt(newPrice)} (${diff >= 0 ? '+' : ''}${pct}%)`);
+                results.push(`${diff >= 0 ? '▲' : '▼'} \`${stock.ticker}\` $${formatNumber(oldPrice)} - $${formatNumber(newPrice)} (${diff >= 0 ? '+' : ''}${pct}%)`);
             }
             return interaction.reply({ embeds: [new EmbedBuilder()
                 .setTitle('📈 Stock Market Ticked')
@@ -266,7 +266,7 @@ module.exports = {
             bountyMap.set(target.id, amount);
             return interaction.reply({ embeds: [new EmbedBuilder()
                 .setTitle('🎯 Bounty Set')
-                .setDescription(`${target.username} now has a bounty of $${fmt(amount)}`)
+                .setDescription(`${target.username} now has a bounty of $${formatNumber(amount)}`)
                 .setColor(0xFF4500)] });
         }
 
