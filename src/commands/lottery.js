@@ -65,7 +65,7 @@ module.exports = {
             const label        = type === 'hourly' ? 'Hourly' : 'Daily';
 
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle(`🎟️ ${label} Lottery — Tickets Purchased!`)
+                .setTitle(`🎟️ ${label} Lottery - Tickets Purchased!`)
                 .addFields(
                     { name: '🎟️ Your Tickets',  value: `${fmtInt(myTickets)} (${chance}% chance)`, inline: true },
                     { name: '🏆 Current Pot',    value: `$${fmt(lottery.pot)}`,                     inline: true },
@@ -73,7 +73,7 @@ module.exports = {
                     { name: '⏰ Draw',            value: `<t:${drawTs}:R>`,                         inline: true },
                 )
                 .setColor(0xFFD700)
-                .setFooter({ text: 'At least 2 players required — otherwise everyone is refunded' })] });
+                .setFooter({ text: 'At least 2 players required - otherwise everyone is refunded' })] });
         }
 
         if (sub === 'info') {
@@ -89,7 +89,7 @@ module.exports = {
                     .slice(0, 5)
                     .map(t => {
                         const pct = ((t.count / (total || 1)) * 100).toFixed(1);
-                        return `<@${t.userId}> — ${fmtInt(t.count)} ticket${t.count !== 1 ? 's' : ''} (${pct}%)`;
+                        return `<@${t.userId}> - ${fmtInt(t.count)} ticket${t.count !== 1 ? 's' : ''} (${pct}%)`;
                     })
                     .join('\n')
                 : 'No tickets sold yet.';

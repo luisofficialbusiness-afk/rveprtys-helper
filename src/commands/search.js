@@ -33,7 +33,7 @@ const DEATH_MESSAGES = [
 const FIND_MESSAGES = [
     'You dug around and found',
     'Hidden under some debris you discovered',
-    'Jackpot — tucked away was',
+    'Jackpot - tucked away was',
     'After some careful searching you walked away with',
     'You struck lucky and pocketed',
 ];
@@ -45,16 +45,16 @@ module.exports = {
         .addStringOption(o =>
             o.setName('location').setDescription('Where to search').setRequired(true)
                 .addChoices(
-                    { name: '🛋️ Behind the Couch',      value: 'couch'              },
-                    { name: '🚗 Abandoned Car',           value: 'car'                },
-                    { name: '🏠 Empty House',             value: 'house'              },
-                    { name: '🌳 Local Park',              value: 'park'               },
-                    { name: '🗑️ Dumpster',               value: 'dumpster'           },
-                    { name: '🌆 Dark Street',             value: 'street'             },
-                    { name: '🌃 Back Alley',              value: 'alley'              },
-                    { name: '🏚️ Abandoned Building',     value: 'abandoned_building' },
-                    { name: '🏦 Bank Vault',              value: 'bank_vault'         },
-                    { name: '👽 Area 51',                 value: 'area_51'            }
+                    { name: 'Behind the Couch',   value: 'couch'              },
+                    { name: 'Abandoned Car',       value: 'car'                },
+                    { name: 'Empty House',         value: 'house'              },
+                    { name: 'Local Park',          value: 'park'               },
+                    { name: 'Dumpster',            value: 'dumpster'           },
+                    { name: 'Dark Street',         value: 'street'             },
+                    { name: 'Back Alley',          value: 'alley'              },
+                    { name: 'Abandoned Building',  value: 'abandoned_building' },
+                    { name: 'Bank Vault',          value: 'bank_vault'         },
+                    { name: 'Area 51',             value: 'area_51'            }
                 )
         ),
 

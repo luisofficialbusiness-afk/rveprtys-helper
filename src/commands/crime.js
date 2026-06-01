@@ -43,16 +43,16 @@ const SUCCESS_MSGS = [
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('crime')
-        .setDescription('Commit a crime for big money — high risk, high reward')
+        .setDescription('Commit a crime for big money - high risk, high reward')
         .addStringOption(o =>
             o.setName('type').setDescription('Type of crime').setRequired(true)
                 .addChoices(
-                    { name: '🤏 Pickpocket',   value: 'pickpocket'   },
-                    { name: '🛍️ Shoplift',      value: 'shoplift'     },
-                    { name: '🚙 Carjack',       value: 'carjack'      },
-                    { name: '🔪 Mugging',       value: 'mugging'      },
-                    { name: '💳 Fraud',         value: 'fraud'        },
-                    { name: '🏦 Bank Robbery',  value: 'bank_robbery' }
+                    { name: 'Pickpocket',   value: 'pickpocket'   },
+                    { name: 'Shoplift',     value: 'shoplift'     },
+                    { name: 'Carjack',      value: 'carjack'      },
+                    { name: 'Mugging',      value: 'mugging'      },
+                    { name: 'Fraud',        value: 'fraud'        },
+                    { name: 'Bank Robbery', value: 'bank_robbery' }
                 )
         ),
 
@@ -79,7 +79,7 @@ module.exports = {
 
             if (result.blocked) {
                 return interaction.reply({ embeds: [new EmbedBuilder()
-                    .setTitle(`${c.emoji} ${c.label} — Barely Survived`)
+                    .setTitle(`${c.emoji} ${c.label} - Barely Survived`)
                     .setDescription(`${msg}\n\n🛟 **Your lifesaver saved you!** No money was lost.`)
                     .setColor(0xFFD700)] });
             }
@@ -103,7 +103,7 @@ module.exports = {
 
             const msg = CAUGHT_MSGS[Math.floor(Math.random() * CAUGHT_MSGS.length)];
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle(`🚨 Caught — ${c.label}`)
+                .setTitle(`🚨 Caught - ${c.label}`)
                 .setDescription(`${msg}\n\nYou paid a **$${fmt(actual)}** fine.`)
                 .addFields({ name: '💵 New Balance', value: `$${fmt(user.balance)}`, inline: true })
                 .setColor(0xff8800)
@@ -116,7 +116,7 @@ module.exports = {
 
         const msg = SUCCESS_MSGS[Math.floor(Math.random() * SUCCESS_MSGS.length)];
         return interaction.reply({ embeds: [new EmbedBuilder()
-            .setTitle(`${c.emoji} ${c.label} — Success`)
+            .setTitle(`${c.emoji} ${c.label} - Success`)
             .setDescription(`${msg} You walked away with **$${fmtInt(amount)}**.`)
             .addFields({ name: '💵 New Balance', value: `$${fmt(user.balance)}`, inline: true })
             .setColor(0x00cc44)

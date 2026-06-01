@@ -40,7 +40,7 @@ module.exports = {
         if (sub === 'browse') {
             const shopLines = Object.entries(ITEMS).map(([key, item]) => {
                 const owned = user.inventory?.find(i => i.item === key)?.quantity ?? 0;
-                return `${item.emoji} **${item.name}** — $${fmtInt(item.price)}\n> ${item.description}\n> You own: **${owned}**`;
+                return `${item.emoji} **${item.name}** - $${fmtInt(item.price)}\n> ${item.description}\n> You own: **${owned}**`;
             }).join('\n\n');
 
             const invLines = user.inventory?.length
