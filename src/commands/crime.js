@@ -9,12 +9,12 @@ const fmtInt = (n) => Number(n).toLocaleString('en-US');
 const COOLDOWN = 60 * 60 * 1000;
 
 const CRIMES = {
-    pickpocket:    { emoji: '🤏', label: 'Pickpocket',    min: 100,  max: 400,   deathChance: 0.04, catchChance: 0.20, fine: 0.30 },
-    shoplift:      { emoji: '🛍️', label: 'Shoplift',      min: 200,  max: 800,   deathChance: 0.06, catchChance: 0.25, fine: 0.35 },
-    carjack:       { emoji: '🚙', label: 'Carjack',       min: 500,  max: 1800,  deathChance: 0.10, catchChance: 0.30, fine: 0.40 },
-    mugging:       { emoji: '🔪', label: 'Mugging',       min: 700,  max: 2800,  deathChance: 0.14, catchChance: 0.35, fine: 0.45 },
-    fraud:         { emoji: '💳', label: 'Fraud',         min: 1000, max: 4500,  deathChance: 0.05, catchChance: 0.40, fine: 0.50 },
-    bank_robbery:  { emoji: '🏦', label: 'Bank Robbery',  min: 3000, max: 12000, deathChance: 0.22, catchChance: 0.50, fine: 0.60 },
+    pickpocket:    { emoji: '🤏', label: 'Pickpocket',    min: 100,  max: 400,   deathChance: 0.04, catchChance: 0.20, fine: 0.30, failChance: 0.15, failPenalty: 0,   failMsg: 'You attempted to pickpocket someone but your pants fell down and they got away.' },
+    shoplift:      { emoji: '🛍️', label: 'Shoplift',      min: 200,  max: 800,   deathChance: 0.06, catchChance: 0.25, fine: 0.35, failChance: 0.15, failPenalty: 0,   failMsg: 'You stole a pack of gum from Walmart and were immediately arrested.' },
+    carjack:       { emoji: '🚙', label: 'Carjack',       min: 500,  max: 1800,  deathChance: 0.10, catchChance: 0.30, fine: 0.40, failChance: 0.20, failPenalty: 0,   failMsg: "You tried carjacking someone but you don't know how to drive and failed." },
+    mugging:       { emoji: '🔪', label: 'Mugging',       min: 700,  max: 2800,  deathChance: 0.14, catchChance: 0.35, fine: 0.45, failChance: 0.20, failPenalty: 0,   failMsg: "You tried mugging someone but you don't even go outside." },
+    fraud:         { emoji: '💳', label: 'Fraud',         min: 1000, max: 4500,  deathChance: 0.05, catchChance: 0.40, fine: 0.50, failChance: 0.20, failPenalty: 500, failMsg: 'You committed fraud in your own name and lost $500.' },
+    bank_robbery:  { emoji: '🏦', label: 'Bank Robbery',  min: 3000, max: 12000, deathChance: 0.22, catchChance: 0.50, fine: 0.60, failChance: 0.25, failPenalty: 0,   failMsg: 'All of the money you stole was fake, you idiot.' },
 };
 
 const DEATH_MSGS = [
@@ -65,7 +65,8 @@ module.exports = {
             const exp = cooldowns.crime.get(interaction.user.id) + COOLDOWN;
             if (now < exp) {
                 const left = exp - now;
-                const m = Math.floor(left / 60000), s = Math.ceil((left % 60000) / 1000);
+                const totalSecs = Math.ceil(left / 1000);
+                const m = Math.floor(totalSecs / 60), s = totalSecs % 60;
                 return interaction.reply({ content: `⏳ Laying low. Try again in **${m}m ${s}s**.`, ephemeral: true });
             }
         }
@@ -92,6 +93,23 @@ module.exports = {
                 .setTitle(`☠️ ${c.label} Gone Wrong`)
                 .setDescription(`${msg}\n\nYou lost ${lostStr}.`)
                 .setColor(0xff3333)] });
+        }
+
+        if (Math.random() < c.failChance) {
+            if (c.failPenalty > 0) {
+                const lost = Math.min(c.failPenalty, user.balance);
+                user.balance = parseFloat((user.balance - lost).toFixed(2));
+                await user.save();
+                return interaction.reply({ embeds: [new EmbedBuilder()
+                    .setTitle(`${c.emoji} ${c.label} - Failed`)
+                    .setDescription(`${c.failMsg}`)
+                    .addFields({ name: '💵 New Balance', value: `$${fmt(user.balance)}`, inline: true })
+                    .setColor(0xff8800)] });
+            }
+            return interaction.reply({ embeds: [new EmbedBuilder()
+                .setTitle(`${c.emoji} ${c.label} - Failed`)
+                .setDescription(`${c.failMsg}`)
+                .setColor(0xff8800)] });
         }
 
         if (Math.random() < c.catchChance) {
