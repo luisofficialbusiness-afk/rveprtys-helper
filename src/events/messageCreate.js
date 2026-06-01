@@ -230,7 +230,7 @@ module.exports = {
 
         if (cmd === 'crash')                       return run('gamble', { getString: n => n === 'game' ? 'crash'     : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
         if (cmd === 'horserace' || cmd === 'race') return run('gamble', { getString: n => n === 'game' ? 'horserace' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
-        if (cmd === 'scratch')                     return run('gamble', { getString: n => n === 'game' ? 'scratch'   : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
+        if (cmd === 'mines')                       return run('gamble', { getString: n => n === 'game' ? 'mines'     : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
         if (cmd === 'baccarat' || cmd === 'bac')   return run('gamble', { getString: n => n === 'game' ? 'baccarat'  : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
 
         if (cmd === 'beg') return run('beg', {});

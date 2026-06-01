@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { getUser, anticheat } = require('../utils/economy');
 const { formatNumber } = require('../utils/format');
+const { pregame, makeCancelStart } = require('../utils/pregame');
 const {
     SYMBOLS, RED_NUMS, HORSES, SCRATCH_SYMBOLS,
     shuffledDeck, cardPoints, handTotal, showHand, cardRank,
@@ -22,7 +23,7 @@ module.exports = {
                     { name: 'High / Low', value: 'highlow' },
                     { name: 'Crash', value: 'crash' },
                     { name: 'Horse Race', value: 'horserace' },
-                    { name: 'Scratch Card', value: 'scratch' },
+                    { name: 'Mines',        value: 'mines'   },
                     { name: 'Baccarat', value: 'baccarat' }
                 )
         )
@@ -297,10 +298,9 @@ module.exports = {
         if (game === 'crash') {
             await user.save();
 
-            let autoLimit  = null;
-            let gameActive = false;
+            let autoLimit = null;
 
-            const lobbyEmbed = () => new EmbedBuilder()
+            const getEmbed = () => new EmbedBuilder()
                 .setTitle('🚀 Crash')
                 .setDescription(
                     `Bet: **$${formatNumber(bet)}**\n` +
@@ -309,31 +309,15 @@ module.exports = {
                 )
                 .setColor(0x2b2d31);
 
-            const lobbyRow = () => new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('crash_cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger),
+            const getOptionRows = () => [new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('crash_setlimit').setLabel('Set Limit').setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId('crash_start').setLabel('Start').setStyle(ButtonStyle.Success),
-            );
+            )];
 
-            const msg = await interaction.reply({ embeds: [lobbyEmbed()], components: [lobbyRow()], fetchReply: true });
-
-            const lobbyCollector = msg.createMessageComponentCollector({
-                filter: i => i.user.id === interaction.user.id,
-                time: 60000,
-            });
-
-            lobbyCollector.on('collect', async i => {
-                if (i.customId === 'crash_cancel') {
-                    lobbyCollector.stop('cancelled');
-                    user.balance = parseFloat((user.balance + bet).toFixed(2));
-                    await user.save();
-                    return i.update({
-                        embeds: [new EmbedBuilder().setTitle('🚀 Crash').setDescription('Cancelled. Bet refunded.').setColor(0x71717a)],
-                        components: [],
-                    });
-                }
-
-                if (i.customId === 'crash_setlimit') {
+            const { started, msg } = await pregame(interaction, user, bet, {
+                title: '🚀 Crash',
+                getEmbed,
+                getOptionRows,
+                onOption: async (i) => {
                     const modal = new ModalBuilder().setCustomId('crash_limit_modal').setTitle('Set Auto Cashout');
                     modal.addComponents(new ActionRowBuilder().addComponents(
                         new TextInputBuilder()
@@ -350,13 +334,13 @@ module.exports = {
                     if (isNaN(val) || val < 1.01 || val > 500)
                         return sub.reply({ content: '❌ Limit must be between 1.01 and 500.', ephemeral: true });
                     autoLimit = val;
-                    return sub.update({ embeds: [lobbyEmbed()], components: [lobbyRow()] });
-                }
+                    await sub.update({ embeds: [getEmbed()], components: [...getOptionRows(), makeCancelStart()] });
+                },
+            });
 
-                if (i.customId === 'crash_start') {
-                    gameActive = true;
-                    lobbyCollector.stop('started');
-                    await i.deferUpdate();
+            if (!started) return;
+
+            {
 
                     const r       = Math.random();
                     const crashAt = parseFloat(Math.min(500, Math.max(1.01, 0.99 / (1 - r * 0.998))).toFixed(2));
@@ -441,19 +425,7 @@ module.exports = {
                         if (reason !== 'done' && reason !== 'crashed' && !cashedOut && !crashed)
                             await doCashout(current);
                     });
-                }
-            });
-
-            lobbyCollector.on('end', async (_, reason) => {
-                if (reason !== 'started' && reason !== 'cancelled' && !gameActive) {
-                    user.balance = parseFloat((user.balance + bet).toFixed(2));
-                    await user.save();
-                    await msg.edit({
-                        embeds: [new EmbedBuilder().setTitle('🚀 Crash').setDescription('Lobby timed out. Bet refunded.').setColor(0x71717a)],
-                        components: [],
-                    }).catch(() => {});
-                }
-            });
+            }
 
             return;
         }
@@ -596,37 +568,212 @@ module.exports = {
             return;
         }
 
-        if (game === 'scratch') {
-            const grid = Array(3).fill(null).map(() => SCRATCH_SYMBOLS[Math.floor(Math.random() * SCRATCH_SYMBOLS.length)]);
-            const counts = {};
-            grid.forEach(s => counts[s] = (counts[s] || 0) + 1);
-            const maxMatch = Math.max(...Object.values(counts));
-
-            let scratchWinnings = 0, scratchLine, scratchColor;
-            if (maxMatch === 3) {
-                scratchWinnings = parseFloat((bet * 10).toFixed(2));
-                scratchLine = `JACKPOT! Three of a kind! You won **$${formatNumber(scratchWinnings)}**!`;
-                scratchColor = 0xFFD700;
-            } else if (maxMatch === 2) {
-                scratchWinnings = parseFloat((bet * 2.5).toFixed(2));
-                scratchLine = `Two of a kind! You won **$${formatNumber(scratchWinnings)}**!`;
-                scratchColor = 0x00ff00;
-            } else {
-                scratchLine = `No match. You lost **$${formatNumber(bet)}**.`;
-                scratchColor = 0xff0000;
-            }
-            ({ winnings: scratchWinnings, text: scratchLine } = applyBoost(user, scratchWinnings, scratchLine));
-            user.balance = parseFloat((user.balance + scratchWinnings).toFixed(2));
-            trackWin(user, scratchWinnings, bet);
+        if (game === 'mines') {
             await user.save();
-            await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
-            return interaction.reply({
-                embeds: [new EmbedBuilder()
-                    .setTitle('🎟️ Scratch Card')
-                    .setDescription(`${grid.join(' | ')}\n\n${scratchLine}`)
-                    .addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true })
-                    .setColor(scratchColor)]
+
+            let gridSize = 3;
+            let mineCount = 3;
+            const maxMines = () => gridSize * gridSize - 1;
+
+            const getEmbed = () => new EmbedBuilder()
+                .setTitle('💣 Mines')
+                .setDescription(
+                    `Bet: **$${formatNumber(bet)}**\n` +
+                    `Grid: **${gridSize}x${gridSize}** | Mines: **${mineCount}**\n\n` +
+                    `Reveal safe tiles to grow your multiplier.\nHit a mine and you lose everything.`
+                )
+                .setColor(0x2b2d31);
+
+            const getOptionRows = () => [
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('mines_grid_3').setLabel('3x3').setStyle(gridSize === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('mines_grid_4').setLabel('4x4').setStyle(gridSize === 4 ? ButtonStyle.Primary : ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('mines_grid_5').setLabel('5x5').setStyle(gridSize === 5 ? ButtonStyle.Primary : ButtonStyle.Secondary),
+                ),
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('mines_minus').setLabel('-').setStyle(ButtonStyle.Secondary).setDisabled(mineCount <= 1),
+                    new ButtonBuilder().setCustomId('mines_count').setLabel(`${mineCount} mine${mineCount !== 1 ? 's' : ''}`).setStyle(ButtonStyle.Secondary).setDisabled(true),
+                    new ButtonBuilder().setCustomId('mines_plus').setLabel('+').setStyle(ButtonStyle.Secondary).setDisabled(mineCount >= maxMines()),
+                ),
+            ];
+
+            const { started, msg } = await pregame(interaction, user, bet, {
+                title: '💣 Mines',
+                getEmbed,
+                getOptionRows,
+                onOption: async (i) => {
+                    if (i.customId === 'mines_grid_3') { gridSize = 3; mineCount = Math.min(mineCount, maxMines()); }
+                    if (i.customId === 'mines_grid_4') { gridSize = 4; mineCount = Math.min(mineCount, maxMines()); }
+                    if (i.customId === 'mines_grid_5') gridSize = 5;
+                    if (i.customId === 'mines_minus' && mineCount > 1) mineCount--;
+                    if (i.customId === 'mines_plus' && mineCount < maxMines()) mineCount++;
+                    await i.update({ embeds: [getEmbed()], components: [...getOptionRows(), makeCancelStart()] });
+                },
             });
+
+            if (!started) return;
+
+            const is5x5   = gridSize === 5;
+            const total   = gridSize * gridSize;
+            const mineSet = new Set();
+            while (mineSet.size < mineCount) mineSet.add(Math.floor(Math.random() * total));
+
+            const revealed = Array(total).fill(false);
+            let safeReveals = 0;
+            let multiplier  = 1.0;
+            let gameOver    = false;
+
+            const nextMultiplier = () =>
+                parseFloat((multiplier * 0.97 * (total - safeReveals) / (total - mineCount - safeReveals)).toFixed(4));
+
+            const cashoutRow = () => new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('mine_cashout')
+                    .setLabel(`Cash Out (${multiplier.toFixed(2)}x - $${formatNumber(parseFloat((bet * multiplier).toFixed(2)))})`)
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+            const buildGrid = (showMines = false) => {
+                const rows = [];
+                for (let r = 0; r < gridSize; r++) {
+                    const row = new ActionRowBuilder();
+                    for (let c = 0; c < gridSize; c++) {
+                        const idx = r * gridSize + c;
+                        const btn = new ButtonBuilder().setCustomId(`mine_${idx}`).setStyle(ButtonStyle.Secondary);
+                        if (revealed[idx]) {
+                            mineSet.has(idx)
+                                ? btn.setEmoji('💣').setStyle(ButtonStyle.Danger).setDisabled(true)
+                                : btn.setEmoji('💎').setStyle(ButtonStyle.Success).setDisabled(true);
+                        } else if (showMines && mineSet.has(idx)) {
+                            btn.setEmoji('💣').setStyle(ButtonStyle.Danger).setDisabled(true);
+                        } else {
+                            btn.setEmoji('🟦').setDisabled(showMines || gameOver);
+                        }
+                        row.addComponents(btn);
+                    }
+                    rows.push(row);
+                }
+                if (!is5x5 && !showMines && !gameOver) rows.push(cashoutRow());
+                return rows;
+            };
+
+            const minesEmbed = (state = 'playing') => {
+                const payout = parseFloat((bet * multiplier).toFixed(2));
+                if (state === 'playing') return new EmbedBuilder().setTitle('💣 Mines')
+                    .setDescription(`**${multiplier.toFixed(2)}x** | **${safeReveals}** safe | **${mineCount}** mines hidden`)
+                    .setColor(0x2ecc71);
+                if (state === 'cashout') return new EmbedBuilder().setTitle('💣 Mines')
+                    .setDescription(`Cashed out at **${multiplier.toFixed(2)}x**! You won **$${formatNumber(payout)}**!`)
+                    .addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true })
+                    .setColor(0x00ff00);
+                if (state === 'boom') return new EmbedBuilder().setTitle('💣 Mines')
+                    .setDescription(`💥 You hit a mine! You lost **$${formatNumber(bet)}**.`)
+                    .setColor(0xff0000);
+                if (state === 'cleared') return new EmbedBuilder().setTitle('💣 Mines')
+                    .setDescription(`🎉 Board cleared at **${multiplier.toFixed(2)}x**! You won **$${formatNumber(payout)}**!`)
+                    .addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true })
+                    .setColor(0xFFD700);
+            };
+
+            await msg.edit({ embeds: [minesEmbed()], components: buildGrid() });
+
+            // 5x5 uses all 5 button rows for the grid - cash out lives in a separate follow-up
+            let cashoutMsg = null;
+            if (is5x5) {
+                cashoutMsg = await interaction.followUp({ components: [cashoutRow()], fetchReply: true });
+            }
+
+            const clearCashoutMsg = () => cashoutMsg?.edit({ components: [] }).catch(() => {});
+
+            const gameCollector = msg.createMessageComponentCollector({
+                filter: j => j.user.id === interaction.user.id,
+                time: 300000,
+            });
+
+            const doCashout = async (j = null, fromCashoutMsg = false) => {
+                gameOver = true;
+                gameCollector.stop('cashout');
+                let payout = parseFloat((bet * multiplier).toFixed(2));
+                let note   = '';
+                ({ winnings: payout, text: note } = applyBoost(user, payout, note));
+                user.balance = parseFloat((user.balance + payout).toFixed(2));
+                trackWin(user, payout, bet);
+                await user.save();
+                await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+                const embed      = minesEmbed('cashout');
+                const components = buildGrid(true);
+                if (fromCashoutMsg && j) {
+                    await j.update({ components: [] });
+                    await msg.edit({ embeds: [embed], components }).catch(() => {});
+                } else if (j) {
+                    await j.update({ embeds: [embed], components });
+                    await clearCashoutMsg();
+                } else {
+                    await msg.edit({ embeds: [embed], components }).catch(() => {});
+                    await clearCashoutMsg();
+                }
+            };
+
+            // For 5x5, collect cashout from the separate follow-up message
+            if (cashoutMsg) {
+                const coCollector = cashoutMsg.createMessageComponentCollector({
+                    filter: j => j.user.id === interaction.user.id,
+                    time: 300000,
+                });
+                coCollector.on('collect', async j => {
+                    if (gameOver) return;
+                    await doCashout(j, true);
+                    coCollector.stop();
+                });
+            }
+
+            gameCollector.on('collect', async j => {
+                if (gameOver) return;
+
+                if (j.customId === 'mine_cashout') { await doCashout(j); return; }
+
+                if (!j.customId.startsWith('mine_')) return;
+                const idx = parseInt(j.customId.split('_')[1]);
+                if (revealed[idx]) return;
+                revealed[idx] = true;
+
+                if (mineSet.has(idx)) {
+                    gameOver = true;
+                    gameCollector.stop('boom');
+                    trackWin(user, 0, bet);
+                    await user.save();
+                    await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+                    await clearCashoutMsg();
+                    await j.update({ embeds: [minesEmbed('boom')], components: buildGrid(true) });
+                    return;
+                }
+
+                multiplier = nextMultiplier();
+                safeReveals++;
+
+                if (safeReveals === total - mineCount) {
+                    gameOver = true;
+                    gameCollector.stop('cleared');
+                    let payout = parseFloat((bet * multiplier).toFixed(2));
+                    let note   = '';
+                    ({ winnings: payout, text: note } = applyBoost(user, payout, note));
+                    user.balance = parseFloat((user.balance + payout).toFixed(2));
+                    trackWin(user, payout, bet);
+                    await user.save();
+                    await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+                    await clearCashoutMsg();
+                    await j.update({ embeds: [minesEmbed('cleared')], components: buildGrid(true) });
+                    return;
+                }
+
+                await j.update({ embeds: [minesEmbed()], components: buildGrid() });
+                if (is5x5) await cashoutMsg?.edit({ components: [cashoutRow()] }).catch(() => {});
+            });
+
+            gameCollector.on('end', async (_, reason) => {
+                if (!gameOver) await doCashout();
+            });
+
+            return;
         }
 
         let winnings = 0, title, text, color;
