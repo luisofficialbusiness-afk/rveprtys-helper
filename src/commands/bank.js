@@ -2,15 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUser } = require('../utils/economy');
 
 const MAX_BALANCE = 999_999_999_999_999;
-const { formatNumber } = require('../utils/format');
-
-function parseAmount(str, balance) {
-    if (!str) return NaN;
-    const s = str.toString().toLowerCase();
-    if (s === 'all' || s === 'max') return balance;
-    const n = parseFloat(s);
-    return isNaN(n) ? NaN : n;
-}
+const { formatNumber, parseAmount } = require('../utils/format');
 
 module.exports = {
     data: new SlashCommandBuilder()

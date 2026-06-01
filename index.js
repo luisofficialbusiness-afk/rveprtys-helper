@@ -22,7 +22,7 @@ const PREFIX = '?';
 const OWNER_ID = '1453078748080504996';
 const isAdmin = (member) => member.permissions.has('Administrator') || member.id === OWNER_ID;
 
-const { formatNumber } = require('./src/utils/format');
+const { formatNumber, parseAmount } = require('./src/utils/format');
 
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('MongoDB connected'))
@@ -212,15 +212,15 @@ client.on('messageCreate', async message => {
     if (cmd === 'givemoney' || cmd === 'give')
         return run('give', {
             getUser: n => n === 'user' ? message.mentions.users.first() : null,
-            getInteger: n => n === 'amount' ? parseInt(args[1]) : null,
+            getInteger: n => n === 'amount' ? parseAmount(args[1]) : null,
         });
 
-    if (cmd === 'coinflip' || cmd === 'cf') return run('gamble', { getString: n => n === 'game' ? 'coinflip' : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
-    if (cmd === 'dice') return run('gamble', { getString: n => n === 'game' ? 'dice' : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
-    if (cmd === 'slots') return run('gamble', { getString: n => n === 'game' ? 'slots' : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
-    if (cmd === 'roulette') return run('gamble', { getString: n => n === 'game' ? 'roulette' : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
-    if (cmd === 'blackjack' || cmd === 'bj') return run('gamble', { getString: n => n === 'game' ? 'blackjack' : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
-    if (cmd === 'highlow' || cmd === 'hl') return run('gamble', { getString: n => n === 'game' ? 'highlow' : null, getInteger: n => n === 'bet' ? parseFloat(args[0]) : null });
+    if (cmd === 'coinflip' || cmd === 'cf') return run('gamble', { getString: n => n === 'game' ? 'coinflip' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
+    if (cmd === 'dice') return run('gamble', { getString: n => n === 'game' ? 'dice' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
+    if (cmd === 'slots') return run('gamble', { getString: n => n === 'game' ? 'slots' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
+    if (cmd === 'roulette') return run('gamble', { getString: n => n === 'game' ? 'roulette' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
+    if (cmd === 'blackjack' || cmd === 'bj') return run('gamble', { getString: n => n === 'game' ? 'blackjack' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
+    if (cmd === 'highlow' || cmd === 'hl') return run('gamble', { getString: n => n === 'game' ? 'highlow' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
 
     if (cmd === 'rob')
         return run('rob', { getUser: n => n === 'target' ? message.mentions.users.first() : null });
@@ -259,22 +259,22 @@ client.on('messageCreate', async message => {
     if (cmd === 'slave') {
         const sub = args.shift()?.toLowerCase();
         if (sub === 'buy') return run('slave', { getSubcommand: () => 'buy', getUser: n => n === 'user' ? message.mentions.users.first() : null });
-        if (sub === 'sell') return run('slave', { getSubcommand: () => 'sell', getUser: n => n === 'user' ? message.mentions.users.first() : null, getInteger: n => n === 'startingbid' ? parseInt(args[0]) : null });
-        if (sub === 'outbid') return run('slave', { getSubcommand: () => 'outbid', getNumber: n => n === 'amount' ? parseFloat(args[0]) : null });
+        if (sub === 'sell') return run('slave', { getSubcommand: () => 'sell', getUser: n => n === 'user' ? message.mentions.users.first() : null, getInteger: n => n === 'startingbid' ? parseAmount(args[0]) : null });
+        if (sub === 'outbid') return run('slave', { getSubcommand: () => 'outbid', getNumber: n => n === 'amount' ? parseAmount(args[0]) : null });
         if (sub === 'panel') return run('slave', { getSubcommand: () => 'panel' });
         if (sub === 'list') return run('slave', { getSubcommand: () => 'list' });
         return run('slave', { getSubcommand: () => 'status' });
     }
     if (cmd === 'buy') return run('slave', { getSubcommand: () => 'buy', getUser: n => n === 'user' ? message.mentions.users.first() : null });
-    if (cmd === 'sellslave') return run('slave', { getSubcommand: () => 'sell', getUser: n => n === 'user' ? message.mentions.users.first() : null, getInteger: n => n === 'startingbid' ? parseInt(args[1]) : null });
-    if (cmd === 'outbid') return run('slave', { getSubcommand: () => 'outbid', getNumber: n => n === 'amount' ? parseFloat(args[0]) : null });
+    if (cmd === 'sellslave') return run('slave', { getSubcommand: () => 'sell', getUser: n => n === 'user' ? message.mentions.users.first() : null, getInteger: n => n === 'startingbid' ? parseAmount(args[1]) : null });
+    if (cmd === 'outbid') return run('slave', { getSubcommand: () => 'outbid', getNumber: n => n === 'amount' ? parseAmount(args[0]) : null });
     if (cmd === 'slavepanel') return run('slave', { getSubcommand: () => 'panel' });
     if (cmd === 'slavelist') return run('slave', { getSubcommand: () => 'list' });
 
     if (cmd === 'owner') {
         const sub = args.shift()?.toLowerCase();
         const user = () => message.mentions.users.first();
-        const num = i => parseFloat(args[i]);
+        const num = i => parseAmount(args[i]);
         if (sub === 'give') return run('owner', { getSubcommand: () => 'give', getUser: n => n === 'user' ? user() : null, getNumber: n => n === 'amount' ? num(1) : null });
         if (sub === 'setbalance') return run('owner', { getSubcommand: () => 'setbalance', getUser: n => n === 'user' ? user() : null, getNumber: n => n === 'amount' ? num(1) : null });
         if (sub === 'setbank') return run('owner', { getSubcommand: () => 'setbank', getUser: n => n === 'user' ? user() : null, getNumber: n => n === 'amount' ? num(1) : null });
@@ -289,12 +289,12 @@ client.on('messageCreate', async message => {
         if (sub === 'bounty') return run('owner', { getSubcommand: () => 'bounty', getUser: n => n === 'user' ? user() : null, getNumber: n => n === 'amount' ? num(1) : null });
     }
 
-    if (cmd === 'ogive') return run('owner', { getSubcommand: () => 'give', getUser: n => n === 'user' ? message.mentions.users.first() : null, getNumber: n => n === 'amount' ? parseFloat(args[1]) : null });
-    if (cmd === 'osetbalance' || cmd === 'osetbal') return run('owner', { getSubcommand: () => 'setbalance', getUser: n => n === 'user' ? message.mentions.users.first() : null, getNumber: n => n === 'amount' ? parseFloat(args[1]) : null });
-    if (cmd === 'osetbank') return run('owner', { getSubcommand: () => 'setbank', getUser: n => n === 'user' ? message.mentions.users.first() : null, getNumber: n => n === 'amount' ? parseFloat(args[1]) : null });
+    if (cmd === 'ogive') return run('owner', { getSubcommand: () => 'give', getUser: n => n === 'user' ? message.mentions.users.first() : null, getNumber: n => n === 'amount' ? parseAmount(args[1]) : null });
+    if (cmd === 'osetbalance' || cmd === 'osetbal') return run('owner', { getSubcommand: () => 'setbalance', getUser: n => n === 'user' ? message.mentions.users.first() : null, getNumber: n => n === 'amount' ? parseAmount(args[1]) : null });
+    if (cmd === 'osetbank') return run('owner', { getSubcommand: () => 'setbank', getUser: n => n === 'user' ? message.mentions.users.first() : null, getNumber: n => n === 'amount' ? parseAmount(args[1]) : null });
     if (cmd === 'oeconomystats' || cmd === 'ostats') return run('owner', { getSubcommand: () => 'stats' });
     if (cmd === 'ouserinfo') return run('owner', { getSubcommand: () => 'userinfo', getUser: n => n === 'user' ? message.mentions.users.first() : null });
-    if (cmd === 'ojackpotdrop') return run('owner', { getSubcommand: () => 'jackpot', getNumber: n => n === 'amount' ? parseFloat(args[0]) : null });
+    if (cmd === 'ojackpotdrop') return run('owner', { getSubcommand: () => 'jackpot', getNumber: n => n === 'amount' ? parseAmount(args[0]) : null });
     if (cmd === 'oresetleaderboard' || cmd === 'oreset') return run('owner', { getSubcommand: () => 'reseteconomy' });
     if (cmd === 'clearcooldowns') return run('owner', { getSubcommand: () => 'clearcooldowns' });
     if (cmd === 'ostockfix') return run('owner', { getSubcommand: () => 'stockfix' });
@@ -352,16 +352,16 @@ client.on('messageCreate', async message => {
     }
 
     if (cmd === 'crash')
-        return run('gamble', { getString: n => n === 'game' ? 'crash' : null, getInteger: n => n === 'bet' ? parseInt(args[0]) : null });
+        return run('gamble', { getString: n => n === 'game' ? 'crash' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
 
     if (cmd === 'horserace' || cmd === 'race')
-        return run('gamble', { getString: n => n === 'game' ? 'horserace' : null, getInteger: n => n === 'bet' ? parseInt(args[0]) : null });
+        return run('gamble', { getString: n => n === 'game' ? 'horserace' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
 
     if (cmd === 'scratch')
-        return run('gamble', { getString: n => n === 'game' ? 'scratch' : null, getInteger: n => n === 'bet' ? parseInt(args[0]) : null });
+        return run('gamble', { getString: n => n === 'game' ? 'scratch' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
 
     if (cmd === 'baccarat' || cmd === 'bac')
-        return run('gamble', { getString: n => n === 'game' ? 'baccarat' : null, getInteger: n => n === 'bet' ? parseInt(args[0]) : null });
+        return run('gamble', { getString: n => n === 'game' ? 'baccarat' : null, getInteger: n => n === 'bet' ? parseAmount(args[0]) : null });
 
     if (cmd === 'beg')
         return run('beg', {});
