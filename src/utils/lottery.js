@@ -59,7 +59,7 @@ async function drawLottery(client, lottery) {
         }
 
         if (ch) await ch.send({ embeds: [new EmbedBuilder()
-            .setTitle(`🎟️ ${label} Lottery — No Draw`)
+            .setTitle(`🎟️ ${label} Lottery - No Draw`)
             .setDescription(`Not enough players entered (need at least **2**).\nAll tickets have been refunded.`)
             .setColor(0x71717a)] }).catch(() => {});
 

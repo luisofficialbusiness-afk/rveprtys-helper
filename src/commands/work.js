@@ -49,7 +49,7 @@ module.exports = {
                 } catch {}
                 return interaction.reply({ embeds: [new EmbedBuilder()
                     .setTitle('🕊️ You Are Free!')
-                    .setDescription(`You worked and earned **$${fmtInt(amount)}** — your debt is fully paid off!\n\nYou are no longer enslaved.`)
+                    .setDescription(`You worked and earned **$${fmtInt(amount)}** - your debt is fully paid off!\n\nYou are no longer enslaved.`)
                     .setColor(0x00FF99)] });
             }
 
@@ -64,7 +64,7 @@ module.exports = {
             } catch {}
             return interaction.reply({ embeds: [new EmbedBuilder()
                 .setTitle('💼 Work Complete')
-                .setDescription(`You earned **$${fmtInt(amount)}** — but it went to your owner <@${slave.ownerId}>.`)
+                .setDescription(`You earned **$${fmtInt(amount)}** - but it went to your owner <@${slave.ownerId}>.`)
                 .addFields({ name: '💸 Debt Remaining', value: `$${fmt(slave.debt)}`, inline: true })
                 .setColor(0xFF4500)
                 .setFooter({ text: 'Keep working to pay off your debt!' })] });

@@ -105,10 +105,10 @@ client.on('guildCreate', async guild => {
             `Thanks for adding **Economic Bomb** to your server!\n\n` +
             `The stock market has been automatically set up with **${COMPANIES.length} companies**.\n\n` +
             `**Getting started:**\n` +
-            `> \`/help\` — view all commands\n` +
-            `> \`/stock list\` — view the stock market\n` +
-            `> \`/work\` — start earning money\n` +
-            `> \`/daily\` — claim your daily reward`
+            `> \`/help\` - view all commands\n` +
+            `> \`/stock list\` - view the stock market\n` +
+            `> \`/work\` - start earning money\n` +
+            `> \`/daily\` - claim your daily reward`
         )
         .setColor(0xFFD700)
         .setFooter({ text: 'Economic Bomb' });
@@ -432,7 +432,7 @@ client.on('interactionCreate', async interaction => {
             if (slave.debt <= 0) {
                 slave.ownerId = null; slave.debt = 0;
                 await slave.save();
-                await interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ Debt Fully Paid!').setDescription(`Took **$${fmt(taken)}** from <@${targetId}> — debt cleared, they are free.`).setColor(0x00FF99)] });
+                await interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ Debt Fully Paid!').setDescription(`Took **$${fmt(taken)}** from <@${targetId}> - debt cleared, they are free.`).setColor(0x00FF99)] });
                 try { const u = await client.users.fetch(targetId); await u.send({ embeds: [new EmbedBuilder().setTitle('🕊️ You Are Free!').setDescription('Your remaining debt was paid. You are now free.').setColor(0x00FF99)] }); } catch {}
             } else {
                 await slave.save();

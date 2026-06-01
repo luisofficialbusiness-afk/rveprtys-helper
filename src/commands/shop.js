@@ -26,7 +26,7 @@ module.exports = {
                 .setDescription('Buy an item')
                 .addStringOption(o =>
                     o.setName('item').setDescription('Item to buy').setRequired(true)
-                        .addChoices({ name: '🛟 Lifesaver  ($5,000)', value: 'lifesaver' })
+                        .addChoices({ name: 'Lifesaver ($5,000)', value: 'lifesaver' })
                 )
                 .addIntegerOption(o =>
                     o.setName('quantity').setDescription('How many to buy (default: 1)').setRequired(false).setMinValue(1).setMaxValue(99)
@@ -40,7 +40,7 @@ module.exports = {
         if (sub === 'browse') {
             const shopLines = Object.entries(ITEMS).map(([key, item]) => {
                 const owned = user.inventory?.find(i => i.item === key)?.quantity ?? 0;
-                return `${item.emoji} **${item.name}** — $${fmtInt(item.price)}\n> ${item.description}\n> You own: **${owned}**`;
+                return `${item.emoji} **${item.name}** - $${fmtInt(item.price)}\n> ${item.description}\n> You own: **${owned}**`;
             }).join('\n\n');
 
             const invLines = user.inventory?.length
