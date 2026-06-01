@@ -172,7 +172,7 @@ module.exports = {
             const totalMoney = users.reduce((a, b) => a + b.balance + b.bank, 0);
             const richest    = [...users].sort((a, b) => (b.balance + b.bank) - (a.balance + a.bank))[0];
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Economy Stats')
+                .setTitle('📊 Economy Stats')
                 .addFields(
                     { name: 'Total Players', value: `${users.length}`, inline: true },
                     { name: 'Total Money',   value: `$${fmt(totalMoney)}`, inline: true },
@@ -185,7 +185,7 @@ module.exports = {
             const target = interaction.options.getUser('user');
             const user   = await getUser(target.id, interaction.guild.id);
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('User Info')
+                .setTitle('👤 User Info')
                 .addFields(
                     { name: 'Wallet', value: `$${fmt(user.balance)}`, inline: true },
                     { name: 'Bank',   value: `$${fmt(user.bank)}`,    inline: true }
@@ -201,7 +201,7 @@ module.exports = {
             winner.balance = parseFloat((winner.balance + amount).toFixed(2));
             await winner.save();
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Jackpot Drop')
+                .setTitle('💰 Jackpot Drop')
                 .setDescription(`<@${winner.userId}> won **$${fmt(amount)}**!`)
                 .setColor(0x00ff00)] });
         }
@@ -233,7 +233,7 @@ module.exports = {
                 results.push(`${diff >= 0 ? '▲' : '▼'} \`${stock.ticker}\` $${fmt(oldPrice)} - $${fmt(newPrice)} (${diff >= 0 ? '+' : ''}${pct}%)`);
             }
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Stock Market Manually Ticked')
+                .setTitle('📈 Stock Market Ticked')
                 .setDescription(results.join('\n'))
                 .setColor(0x00FF99)
                 .setTimestamp()] });
@@ -255,7 +255,7 @@ module.exports = {
         if (sub === 'setupmarket') {
             await seedMarket(interaction.guild.id);
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Market Initialized')
+                .setTitle('📈 Market Initialized')
                 .setDescription(`Successfully seeded **${COMPANIES.length} stocks** for this server.\nUse \`/stock list\` to view the market.`)
                 .setColor(0x00FF99)
                 .setTimestamp()] });
@@ -266,7 +266,7 @@ module.exports = {
             const amount = interaction.options.getNumber('amount');
             bountyMap.set(target.id, amount);
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Bounty Set')
+                .setTitle('🎯 Bounty Set')
                 .setDescription(`${target.username} now has a bounty of $${fmt(amount)}`)
                 .setColor(0xFF4500)] });
         }
@@ -285,7 +285,7 @@ module.exports = {
 
         if (sub === 'panel') {
             const embed = new EmbedBuilder()
-                .setTitle('Make an Order')
+                .setTitle('📦 Make an Order')
                 .setDescription('To order a link, fill out the form by clicking the button and the bot will DM you the links when done.')
                 .setColor(0x2b2d31);
             const row = new ActionRowBuilder().addComponents(
@@ -310,7 +310,7 @@ module.exports = {
                     const cashDesc = finalCash.length ? finalCash.map((u, i) => `**${i + 1}.** <@${u.userId}> - $${u.balance}`).join('\n') : 'No data.';
                     const bankDesc = finalBank.length ? finalBank.map((u, i) => `**${i + 1}.** <@${u.userId}> - $${u.bank}`).join('\n') : 'No data.';
                     const endEmbed = new EmbedBuilder()
-                        .setTitle('Season 2 Has Ended!')
+                        .setTitle('🎉 Season 2 Has Ended!')
                         .setDescription('The Season 2 economy has concluded. Here are the final standings!')
                         .setColor(0xFFD700)
                         .addFields(

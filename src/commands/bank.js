@@ -40,7 +40,7 @@ module.exports = {
             const target     = interaction.options.getUser('user') ?? interaction.user;
             const targetUser = target.id === interaction.user.id ? user : await getUser(target.id, interaction.guild.id);
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle(`${target.username}'s Balance`)
+                .setTitle(`💰 ${target.username}'s Balance`)
                 .addFields(
                     { name: '💵 Wallet', value: `$${fmt(targetUser.balance)}`, inline: true },
                     { name: '🏦 Bank',   value: `$${fmt(targetUser.bank)}`,    inline: true }
@@ -59,10 +59,10 @@ module.exports = {
             await user.save();
 
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Deposit Successful')
-                .setDescription(`Deposited **$${fmt(amount)}** into your bank.`)
-                .addFields({ name: 'New Bank Balance', value: `$${fmt(user.bank)}`, inline: true })
-                .setColor(0x00ff00)] });
+                .setTitle('🏦 Deposit Successful')
+                .setDescription(`Moved **$${fmt(amount)}** into your bank.`)
+                .addFields({ name: '🏦 New Bank Balance', value: `$${fmt(user.bank)}`, inline: true })
+                .setColor(0x00cc44)] });
         }
 
         if (sub === 'withdraw') {
@@ -76,10 +76,10 @@ module.exports = {
             await user.save();
 
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Withdrawal Successful')
-                .setDescription(`Withdrew **$${fmt(amount)}** from your bank.`)
-                .addFields({ name: 'New Wallet Balance', value: `$${fmt(user.balance)}`, inline: true })
-                .setColor(0x00ff00)] });
+                .setTitle('💸 Withdrawal Successful')
+                .setDescription(`Moved **$${fmt(amount)}** into your wallet.`)
+                .addFields({ name: '💵 New Wallet Balance', value: `$${fmt(user.balance)}`, inline: true })
+                .setColor(0x00cc44)] });
         }
     }
 };

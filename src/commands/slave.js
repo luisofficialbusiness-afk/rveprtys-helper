@@ -68,7 +68,7 @@ module.exports = {
             });
 
             await interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Auction Started!')
+                .setTitle('🔨 Auction Started!')
                 .setDescription(
                     `<@${interaction.user.id}> wants to buy <@${target.id}> for **$${fmt(buyPrice)}**!\n\n` +
                     `<@${target.id}> you have **2 minutes** to escape by using \`/slave outbid\` with more than **$${fmt(buyPrice)}**.`
@@ -93,7 +93,7 @@ module.exports = {
 
                 const ch = await interaction.client.channels.fetch(current.channelId).catch(() => null);
                 if (ch) await ch.send({ embeds: [new EmbedBuilder()
-                    .setTitle('Purchase Complete!')
+                    .setTitle('⛓️ Purchase Complete!')
                     .setDescription(`<@${current.currentBidderId}> bought <@${target.id}> for **$${fmt(current.currentBid)}**!\n<@${target.id}> must earn **$${fmt(slave.debt)}** to be free.`)
                     .setColor(0xFF0000).setTimestamp()] });
 
@@ -126,7 +126,7 @@ module.exports = {
             });
 
             await interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Slave Auction!')
+                .setTitle('🔨 Slave Auction!')
                 .setDescription(
                     `<@${interaction.user.id}> is selling <@${target.id}>!\n\n` +
                     `**Starting bid:** $${fmt(startingBid)}\n` +
@@ -143,7 +143,7 @@ module.exports = {
 
                 if (!current.currentBidderId) {
                     if (ch) await ch.send({ embeds: [new EmbedBuilder()
-                        .setTitle('Auction Ended - No Bids')
+                        .setTitle('❌ Auction Ended')
                         .setDescription(`No one bid on <@${current.slaveId}>. They stay with <@${current.sellerId}>.`)
                         .setColor(0x71717a)] });
                     return;
@@ -163,7 +163,7 @@ module.exports = {
                 await slave.save();
 
                 if (ch) await ch.send({ embeds: [new EmbedBuilder()
-                    .setTitle('Auction Complete!')
+                    .setTitle('⛓️ Auction Complete!')
                     .setDescription(
                         `<@${current.currentBidderId}> won the auction for <@${current.slaveId}> with **$${fmt(current.currentBid)}**!\n` +
                         `<@${current.sellerId}> received **$${fmt(current.currentBid)}**.\n` +
@@ -201,7 +201,7 @@ module.exports = {
                     bidder.balance = parseFloat((bidder.balance - amount).toFixed(2));
                     await bidder.save();
                     return interaction.reply({ embeds: [new EmbedBuilder()
-                        .setTitle('Purchase Blocked!')
+                        .setTitle('🛡️ Purchase Blocked!')
                         .setDescription(`<@${interaction.user.id}> paid **$${fmt(amount)}** and avoided being bought! Remaining: **$${fmt(bidder.balance)}**`)
                         .setColor(0x00FF99)] });
                 }
@@ -219,7 +219,7 @@ module.exports = {
                     auction.currentBidderId = interaction.user.id;
                     activeAuctions.set(auctionKey, auction);
                     return interaction.reply({ embeds: [new EmbedBuilder()
-                        .setTitle('Bid Placed!')
+                        .setTitle('💰 Bid Placed!')
                         .setDescription(`<@${interaction.user.id}> is now the highest bidder at **$${fmt(amount)}** for <@${auction.slaveId}>!`)
                         .setColor(0x00FF99)] });
                 }
@@ -232,7 +232,7 @@ module.exports = {
             const slave = await Slave.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
             if (!slave?.ownerId) return interaction.reply({ content: '✅ You are a free person.', ephemeral: true });
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Your Slave Status')
+                .setTitle('⛓️ Your Slave Status')
                 .setDescription(`You are owned by <@${slave.ownerId}>`)
                 .addFields(
                     { name: 'Debt Remaining',         value: `$${fmt(slave.debt)}`,        inline: true },
@@ -278,7 +278,7 @@ module.exports = {
                 .sort((a, b) => b[1] - a[1])
                 .map(([ownerId, count], i) => `**${i + 1}.** <@${ownerId}> - ${count} slave${count !== 1 ? 's' : ''}`);
             return interaction.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Slave Leaderboard')
+                .setTitle('⛓️ Slave Leaderboard')
                 .setDescription(lines.join('\n'))
                 .setColor(0xFF4500)] });
         }

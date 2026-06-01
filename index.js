@@ -93,7 +93,7 @@ client.on('guildCreate', async guild => {
     }
 
     const welcomeEmbed = new EmbedBuilder()
-        .setTitle('Economic Bomb has arrived!')
+        .setTitle('💣 Economic Bomb has arrived!')
         .setDescription(
             `Thanks for adding **Economic Bomb** to your server!\n\n` +
             `The stock market has been automatically set up with **${COMPANIES.length} companies**.\n\n` +
@@ -132,7 +132,7 @@ client.on('messageCreate', async message => {
     const banEntry = bannedUsers.find(b => b.userId === message.author.id);
     if (banEntry) {
         return message.reply({ embeds: [new EmbedBuilder()
-            .setTitle('You Are Banned')
+            .setTitle('🔨 You Are Banned')
             .setDescription(`You have been banned from using this bot.\n**Reason:** ${banEntry.reason || 'No reason given'}`)
             .setColor(0xff0000)] });
     }
@@ -154,7 +154,7 @@ client.on('messageCreate', async message => {
     for (const [mod, cmds] of Object.entries(MODULE_MAP)) {
         if (cmds.includes(cmd) && modules[mod] === false) {
             return message.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Feature Disabled')
+                .setTitle('🚫 Feature Disabled')
                 .setDescription(`The \`?${cmd}\` command is currently disabled in this server.`)
                 .setColor(0x71717a)] });
         }
@@ -313,8 +313,8 @@ client.on('interactionCreate', async interaction => {
             if (!slave || slave.ownerId !== interaction.user.id) return interaction.reply({ content: '❌ Not your slave.', ephemeral: true });
             slave.ownerId = null; slave.debt = 0; slave.totalEarned = 0;
             await slave.save();
-            await interaction.reply({ embeds: [new EmbedBuilder().setTitle('Slave Freed').setDescription(`<@${targetId}> has been set free.`).setColor(0x00FF99)] });
-            try { const u = await client.users.fetch(targetId); await u.send({ embeds: [new EmbedBuilder().setTitle('You Are Free!').setDescription(`<@${interaction.user.id}> has set you free.`).setColor(0x00FF99)] }); } catch {}
+            await interaction.reply({ embeds: [new EmbedBuilder().setTitle('🕊️ Slave Freed').setDescription(`<@${targetId}> has been set free.`).setColor(0x00FF99)] });
+            try { const u = await client.users.fetch(targetId); await u.send({ embeds: [new EmbedBuilder().setTitle('🕊️ You Are Free!').setDescription(`<@${interaction.user.id}> has set you free.`).setColor(0x00FF99)] }); } catch {}
         }
 
         if (interaction.customId.startsWith('slave_renew_')) {
@@ -329,8 +329,8 @@ client.on('interactionCreate', async interaction => {
             const oldDebt = slave.debt;
             slave.debt    = parseFloat((slave.debt * 2).toFixed(2));
             await slave.save();
-            await interaction.reply({ embeds: [new EmbedBuilder().setTitle('Debt Renewed').setDescription(`Paid **$${fmt(renewCost)}** to renew.\nDebt: **$${fmt(oldDebt)}** → **$${fmt(slave.debt)}**`).setColor(0xFF4500)] });
-            try { const u = await client.users.fetch(targetId); await u.send({ embeds: [new EmbedBuilder().setTitle('Your Debt Has Been Renewed!').setDescription(`Your debt doubled to **$${fmt(slave.debt)}**.`).setColor(0xFF4500)] }); } catch {}
+            await interaction.reply({ embeds: [new EmbedBuilder().setTitle('🔄 Debt Renewed').setDescription(`Paid **$${fmt(renewCost)}** to renew.\nDebt: **$${fmt(oldDebt)}** → **$${fmt(slave.debt)}**`).setColor(0xFF4500)] });
+            try { const u = await client.users.fetch(targetId); await u.send({ embeds: [new EmbedBuilder().setTitle('🔄 Your Debt Has Been Renewed!').setDescription(`Your debt doubled to **$${fmt(slave.debt)}**.`).setColor(0xFF4500)] }); } catch {}
         }
 
         if (interaction.customId.startsWith('slave_check_')) {
@@ -339,7 +339,7 @@ client.on('interactionCreate', async interaction => {
             if (!slave || slave.ownerId !== interaction.user.id) return interaction.reply({ content: '❌ Not your slave.', ephemeral: true });
             const slaveEcon = await getUser(targetId, guildId);
             await interaction.reply({ ephemeral: true, embeds: [new EmbedBuilder()
-                .setTitle(`Stats for <@${targetId}>`)
+                .setTitle(`📊 Stats for <@${targetId}>`)
                 .addFields(
                     { name: 'Debt Remaining',      value: `$${fmt(slave.debt)}`,        inline: true },
                     { name: 'Total Earned for You', value: `$${fmt(slave.totalEarned)}`, inline: true },
@@ -393,15 +393,15 @@ client.on('interactionCreate', async interaction => {
             if (slave.debt <= 0) {
                 slave.ownerId = null; slave.debt = 0;
                 await slave.save();
-                await interaction.reply({ embeds: [new EmbedBuilder().setTitle('Debt Fully Paid!').setDescription(`Took **$${fmt(taken)}** from <@${targetId}> — debt cleared, they are free.`).setColor(0x00FF99)] });
-                try { const u = await client.users.fetch(targetId); await u.send({ embeds: [new EmbedBuilder().setTitle('You Are Free!').setDescription('Your remaining debt was paid. You are now free.').setColor(0x00FF99)] }); } catch {}
+                await interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ Debt Fully Paid!').setDescription(`Took **$${fmt(taken)}** from <@${targetId}> — debt cleared, they are free.`).setColor(0x00FF99)] });
+                try { const u = await client.users.fetch(targetId); await u.send({ embeds: [new EmbedBuilder().setTitle('🕊️ You Are Free!').setDescription('Your remaining debt was paid. You are now free.').setColor(0x00FF99)] }); } catch {}
             } else {
                 await slave.save();
-                await interaction.reply({ embeds: [new EmbedBuilder().setTitle('Payment Taken').setDescription(`Took **$${fmt(taken)}** from <@${targetId}>.`).addFields(
+                await interaction.reply({ embeds: [new EmbedBuilder().setTitle('💰 Payment Taken').setDescription(`Took **$${fmt(taken)}** from <@${targetId}>.`).addFields(
                     { name: 'Debt Remaining',          value: `$${fmt(slave.debt)}`,        inline: true },
                     { name: 'Their Remaining Balance', value: `$${fmt(slaveUser.balance)}`, inline: true }
                 ).setColor(0xFF4500)] });
-                try { const u = await client.users.fetch(targetId); await u.send({ embeds: [new EmbedBuilder().setTitle('Payment Taken').setDescription(`**$${fmt(taken)}** taken toward your debt.\nDebt remaining: **$${fmt(slave.debt)}**`).setColor(0xFF4500)] }); } catch {}
+                try { const u = await client.users.fetch(targetId); await u.send({ embeds: [new EmbedBuilder().setTitle('💰 Payment Taken').setDescription(`**$${fmt(taken)}** taken toward your debt.\nDebt remaining: **$${fmt(slave.debt)}**`).setColor(0xFF4500)] }); } catch {}
             }
         }
 
