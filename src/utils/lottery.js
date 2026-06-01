@@ -4,8 +4,7 @@ const { getUser } = require('./economy');
 const TICKET_PRICES = { hourly: 200,   daily: 1000  };
 const BASE_REWARDS  = { hourly: 1000,  daily: 5000  };
 
-const fmt    = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtInt = (n) => Number(n).toLocaleString('en-US');
+const { fmt, fmtInt } = require('./fmt');
 
 function getNextDraw(type) {
     const now = new Date();

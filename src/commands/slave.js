@@ -3,7 +3,7 @@ const { getUser } = require('../utils/economy');
 const Slave = require('../../models/Slave');
 const activeAuctions = require('../utils/activeAuctions');
 
-const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const { fmt } = require('../utils/fmt');
 
 module.exports = {
     data: new SlashCommandBuilder()

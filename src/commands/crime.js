@@ -3,8 +3,7 @@ const { getUser } = require('../utils/economy');
 const { applyDeathPenalty } = require('../utils/penalty');
 const cooldowns = require('../utils/cooldowns');
 
-const fmt    = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtInt = (n) => Number(n).toLocaleString('en-US');
+const { fmt, fmtInt } = require('../utils/fmt');
 
 const COOLDOWN = 60 * 60 * 1000;
 

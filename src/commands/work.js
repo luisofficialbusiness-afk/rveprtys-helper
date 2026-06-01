@@ -3,8 +3,7 @@ const { getUser, anticheat } = require('../utils/economy');
 const Slave = require('../../models/Slave');
 
 const COOLDOWN = 2 * 60 * 1000;
-const fmt    = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtInt = (n) => Number(n).toLocaleString('en-US');
+const { fmt, fmtInt } = require('../utils/fmt');
 
 module.exports = {
     data: new SlashCommandBuilder()

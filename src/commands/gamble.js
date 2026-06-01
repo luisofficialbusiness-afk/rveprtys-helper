@@ -1,79 +1,11 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getUser, anticheat } = require('../utils/economy');
-
-const SYMBOLS    = ['🍒', '🍋', '🍉', '⭐', '💎', '🍀'];
-const RED_NUMS   = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
-const CARD_VALS  = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-const SUITS      = ['♠','♥','♦','♣'];
-
-const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-function shuffledDeck() {
-    const deck = SUITS.flatMap(s => CARD_VALS.map(v => ({ v, s })));
-    for (let i = deck.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [deck[i], deck[j]] = [deck[j], deck[i]];
-    }
-    return deck;
-}
-
-function cardPoints(card) {
-    if (['J','Q','K'].includes(card.v)) return 10;
-    if (card.v === 'A') return 11;
-    return parseInt(card.v);
-}
-
-function handTotal(hand) {
-    let total = hand.reduce((a, c) => a + cardPoints(c), 0);
-    let aces  = hand.filter(c => c.v === 'A').length;
-    while (total > 21 && aces-- > 0) total -= 10;
-    return total;
-}
-
-function showHand(hand) {
-    return hand.map(c => `\`${c.v}${c.s}\``).join(' ');
-}
-
-function cardRank(card) {
-    return CARD_VALS.indexOf(card.v);
-}
-
-function trackWin(user, winnings, bet) {
-    user.gamblingWinnings = parseFloat(((user.gamblingWinnings ?? 0) + winnings - bet).toFixed(2));
-}
-
-function applyBoost(user, winnings, text) {
-    if ((user.gamblingBoostExpires ?? 0) > Date.now() && winnings > 0) {
-        winnings = parseFloat((winnings * 1.05).toFixed(2));
-        text    += '\n🛟 *+5% lifesaver boost*';
-    }
-    return { winnings, text };
-}
-
-const HORSES = [
-    { name: 'Thunderbolt', emoji: '⚡', odds: 1.8  },
-    { name: 'Lucky Star',  emoji: '⭐', odds: 2.5  },
-    { name: 'Iron Hooves', emoji: '🦾', odds: 3.5  },
-    { name: 'Dark Shadow', emoji: '🌑', odds: 5.0  },
-    { name: 'Wild Spirit', emoji: '🌪️', odds: 7.5  },
-    { name: 'Long Shot',   emoji: '🎯', odds: 12.0 },
-];
-
-const SCRATCH_SYMBOLS = ['💎', '⭐', '🍀', '💰', '🎯', '❌'];
-
-function baccaratVal(card) {
-    if (['10','J','Q','K'].includes(card.v)) return 0;
-    if (card.v === 'A') return 1;
-    return parseInt(card.v);
-}
-function baccaratTotal(hand) {
-    return hand.reduce((s, c) => s + baccaratVal(c), 0) % 10;
-}
-
-function refundTimeout(user, bet) {
-    user.balance = parseFloat((user.balance + bet).toFixed(2));
-    return user.save();
-}
+const { fmt } = require('../utils/fmt');
+const {
+    SYMBOLS, RED_NUMS, HORSES, SCRATCH_SYMBOLS,
+    shuffledDeck, cardPoints, handTotal, showHand, cardRank,
+    baccaratVal, baccaratTotal, trackWin, applyBoost, refundTimeout,
+} = require('../utils/gambling');
 
 module.exports = {
     data: new SlashCommandBuilder()

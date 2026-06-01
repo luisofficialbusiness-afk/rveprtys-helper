@@ -3,8 +3,7 @@ const Stock = require('../../models/Stock');
 const Portfolio = require('../../models/Portfolio');
 const User = require('../../models/User');
 
-const fmt    = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtInt = (n) => Number(n).toLocaleString('en-US');
+const { fmt, fmtInt } = require('../utils/fmt');
 
 module.exports = {
     data: new SlashCommandBuilder()

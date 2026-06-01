@@ -22,7 +22,7 @@ const PREFIX   = '?';
 const OWNER_ID = '1453078748080504996';
 const isAdmin  = (member) => member.permissions.has('Administrator') || member.id === OWNER_ID;
 
-const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const { fmt } = require('./src/utils/fmt');
 
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('MongoDB connected'))
