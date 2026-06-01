@@ -42,8 +42,8 @@ module.exports = {
             return interaction.reply({ embeds: [new EmbedBuilder()
                 .setTitle(`${target.username}'s Balance`)
                 .addFields(
-                    { name: 'Wallet', value: `$${fmt(targetUser.balance)}`, inline: true },
-                    { name: 'Bank',   value: `$${fmt(targetUser.bank)}`,    inline: true }
+                    { name: '💵 Wallet', value: `$${fmt(targetUser.balance)}`, inline: true },
+                    { name: '🏦 Bank',   value: `$${fmt(targetUser.bank)}`,    inline: true }
                 )
                 .setColor(0x2b2d31)] });
         }
