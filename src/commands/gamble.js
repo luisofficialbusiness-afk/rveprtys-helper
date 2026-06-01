@@ -297,9 +297,11 @@ module.exports = {
         if (game === 'crash') {
             await user.save();
 
-            const crashAt = parseFloat(Math.min(100, Math.max(1.01, 0.99 / (1 - Math.random()))).toFixed(2));
-            let current = 1.00;
-            let done = false;
+            const r        = Math.random();
+            const crashAt  = parseFloat(Math.min(500, Math.max(1.01, 0.99 / (1 - r * 0.998))).toFixed(2));
+            let current    = 1.00;
+            let cashedOut  = false;
+            let crashed    = false;
 
             const crashEmbed = (mult) => new EmbedBuilder()
                 .setTitle('🚀 Crash')
@@ -308,7 +310,7 @@ module.exports = {
                     `Potential payout: **$${formatNumber(parseFloat((bet * mult).toFixed(2)))}**\n\n` +
                     'Cash out before it crashes!'
                 )
-                .setColor(mult < 2 ? 0x2ecc71 : mult < 5 ? 0xf1c40f : 0xe74c3c);
+                .setColor(mult < 2 ? 0x2ecc71 : mult < 10 ? 0xf1c40f : 0xe74c3c);
 
             const cashBtn = (mult) => new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('crash_cashout').setLabel(`Cash Out (${mult.toFixed(2)}x)`).setStyle(ButtonStyle.Success)
@@ -316,34 +318,36 @@ module.exports = {
 
             const msg = await interaction.reply({ embeds: [crashEmbed(current)], components: [cashBtn(current)], fetchReply: true });
 
-            const collector = msg.createMessageComponentCollector({ filter: i => i.user.id === interaction.user.id, time: 60000 });
+            const collector = msg.createMessageComponentCollector({ filter: i => i.user.id === interaction.user.id, time: 90000 });
 
             const interval = setInterval(async () => {
-                if (done) { clearInterval(interval); return; }
+                if (cashedOut || crashed) { clearInterval(interval); return; }
                 current = parseFloat((current * 1.08).toFixed(2));
                 if (current >= crashAt) {
-                    done = true;
                     clearInterval(interval);
+                    if (cashedOut) return;
+                    crashed = true;
                     collector.stop('crashed');
                     trackWin(user, 0, bet);
                     await user.save();
+                    if (cashedOut) return;
                     await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
                     await msg.edit({
                         embeds: [new EmbedBuilder().setTitle('🚀 Crash').setDescription(`Crashed at **${crashAt.toFixed(2)}x**!\nYou lost **$${formatNumber(bet)}**.`).setColor(0xff0000)],
                         components: [],
-                    }).catch(() => { });
+                    }).catch(() => {});
                 } else {
-                    await msg.edit({ embeds: [crashEmbed(current)], components: [cashBtn(current)] }).catch(() => { });
+                    await msg.edit({ embeds: [crashEmbed(current)], components: [cashBtn(current)] }).catch(() => {});
                 }
-            }, 1000);
+            }, 600);
 
             collector.on('collect', async i => {
-                if (i.customId !== 'crash_cashout' || done) return;
-                done = true;
+                if (i.customId !== 'crash_cashout' || cashedOut || crashed) return;
+                cashedOut = true;
                 clearInterval(interval);
                 collector.stop('done');
                 let payout = parseFloat((bet * current).toFixed(2));
-                let note = '';
+                let note   = '';
                 if ((user.gamblingBoostExpires ?? 0) > Date.now() && payout > bet) { payout = parseFloat((payout * 1.05).toFixed(2)); note = '\n🛟 *+5% lifesaver boost*'; }
                 user.balance = parseFloat((user.balance + payout).toFixed(2));
                 trackWin(user, payout, bet);
@@ -359,8 +363,8 @@ module.exports = {
             });
 
             collector.on('end', async (_, reason) => {
-                if (reason !== 'done' && reason !== 'crashed' && !done) {
-                    done = true;
+                if (reason !== 'done' && reason !== 'crashed' && !cashedOut && !crashed) {
+                    cashedOut = true;
                     clearInterval(interval);
                     const payout = parseFloat((bet * current).toFixed(2));
                     user.balance = parseFloat((user.balance + payout).toFixed(2));
@@ -369,7 +373,7 @@ module.exports = {
                     await msg.edit({
                         embeds: [new EmbedBuilder().setTitle('🚀 Crash').setDescription(`Timed out - auto cashed out at **${current.toFixed(2)}x**! You received **$${formatNumber(payout)}**.`).setColor(0xffff00)],
                         components: [],
-                    }).catch(() => { });
+                    }).catch(() => {});
                 }
             });
             return;
