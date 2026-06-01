@@ -150,6 +150,25 @@ client.on('messageCreate', async message => {
     const now = Date.now();
     const guildId = message.guild.id;
 
+    // Check if this guild is banned from using Economic Bomb
+    const globalConfig = await Config.findOne({ guildId: 'global' }) || {};
+    const bannedGuilds = globalConfig.bannedGuilds || [];
+    if (bannedGuilds.some(b => b.guildId === guildId)) {
+        const banEntry = bannedGuilds.find(b => b.guildId === guildId);
+        return message.reply({
+            embeds: [new EmbedBuilder()
+                .setTitle('Server Banned')
+                .setDescription(
+                    `Sorry, the server you are running this command in has been banned from using Economic Bomb.\n\n` +
+                    `Please contact our support team to find out why your server was banned and whether it can be unbanned.\n\n` +
+                    `**Support Server:** https://discord.gg/BBSNXVrHyX\n` +
+                    (banEntry?.reason ? `**Reason:** ${banEntry.reason}` : '')
+                )
+                .setColor(0xff0000)
+                .setFooter({ text: 'Economic Bomb' })]
+        });
+    }
+
     const config = await Config.findOne({ guildId }) || {};
     const modules = config.modules || {};
     const bannedUsers = config.bannedUsers || [];
