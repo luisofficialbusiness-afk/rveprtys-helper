@@ -20,7 +20,8 @@ module.exports = {
             return interaction.reply({ content: `⏳ You need to wait **${s}s** before working again.`, ephemeral: true });
         }
 
-        const amount = Math.floor(Math.random() * 76) + 25;
+        const base = Math.floor(Math.random() * 76) + 25;
+        const amount = Math.floor(base * (user.prestigeMultiplier || 1));
         user.lastWork = now;
 
         const slave = await Slave.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
@@ -81,11 +82,15 @@ module.exports = {
         await user.save();
         await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
 
-        return interaction.reply({
-            embeds: [new EmbedBuilder()
-                .setTitle('💼 Work Complete')
-                .setDescription(`You earned **$${formatNumber(amount)}**`)
-                .setColor(0x00cc44)]
-        });
+        const embed = new EmbedBuilder()
+            .setTitle('💼 Work Complete')
+            .setDescription(`You earned **$${formatNumber(amount)}**`)
+            .setColor(0x00cc44);
+
+        if (user.prestige > 0) {
+            embed.setFooter({ text: `${user.prestigeMultiplier}x prestige multiplier applied` });
+        }
+
+        return interaction.reply({ embeds: [embed] });
     }
 };
