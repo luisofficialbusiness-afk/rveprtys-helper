@@ -257,7 +257,8 @@ module.exports = {
                 getString: n => n === 'type' ? args[0] : null,
             });
         }
-
+        
+        if (cmd === 'prestige') return run('prestige', {});
         if (cmd === 'help') return run('help', {});
     }
 };
