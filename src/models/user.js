@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-
+ 
 const userSchema = new mongoose.Schema({
     userId: String,
     guildId: String,
@@ -11,7 +11,9 @@ const userSchema = new mongoose.Schema({
     dailyStreak: { type: Number, default: 0 },
     dmOptOut: { type: Boolean, default: false },
     prestige: { type: Number, default: 0 },
-    prestigeMultiplier: { type: Number, default: 1 }
+    prestigeMultiplier: { type: Number, default: 1 },
+    jobId: { type: String, default: null },
+    jobMultiplier: { type: Number, default: 1 }
 });
-
+ 
 module.exports = mongoose.model('User', userSchema);
