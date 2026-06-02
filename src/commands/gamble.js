@@ -3,7 +3,7 @@ const { getUser, anticheat } = require('../utils/economy');
 const { formatNumber } = require('../utils/format');
 const { pregame, makeCancelStart } = require('../utils/pregame');
 const {
-    SYMBOLS, RED_NUMS, HORSES, SCRATCH_SYMBOLS,
+    SYMBOLS, RED_NUMS, HORSES,
     shuffledDeck, cardPoints, handTotal, showHand, cardRank,
     baccaratVal, baccaratTotal, trackWin, applyBoost, refundTimeout,
 } = require('../utils/gambling');
