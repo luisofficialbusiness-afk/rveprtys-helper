@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema({
     lastDaily: { type: Number, default: 0 },
     dailyStreak: { type: Number, default: 0 },
     dmOptOut: { type: Boolean, default: false },
+    prestige: { type: Number, default: 0 },
+    prestigeMultiplier: { type: Number, default: 1 }
 });
 
 module.exports = mongoose.model('User', userSchema);
