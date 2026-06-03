@@ -21,8 +21,6 @@ async function execute(interaction, user, bet) {
         return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🃏 Blackjack').setDescription(`Your hand: ${showHand(playerHand)} = **${handTotal(playerHand)}**\nDealer: ${showHand(dealerHand)} = **${handTotal(dealerHand)}**\n\n${result}`).setColor(winnings > bet ? 0x00ff00 : winnings > 0 ? 0xffff00 : 0xff0000)] });
     }
 
-    await user.save();
-
     const bjEmbed = (pHand, extra = '') => new EmbedBuilder()
         .setTitle('🃏 Blackjack')
         .setDescription(`Your hand: ${showHand(pHand)} = **${handTotal(pHand)}**\nDealer shows: \`${dealerHand[0].v}${dealerHand[0].s}\` + ?\n\n${extra || 'Hit or Stand?'}`)

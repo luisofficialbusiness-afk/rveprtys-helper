@@ -4,8 +4,6 @@ const { formatNumber } = require('../../utils/format');
 const { RED_NUMS, trackWin, applyBoost, refundTimeout } = require('../../utils/gambling');
 
 async function execute(interaction, user, bet) {
-    await user.save();
-
     const msg = await interaction.reply({
         embeds: [new EmbedBuilder().setTitle('🎡 Roulette').setDescription(`Bet: **$${formatNumber(bet)}**\n\n🔴 Red (2x) | ⚫ Black (2x) | 🟢 Green / 0 (35x)\n\nPlace your bet!`).setColor(0x2b2d31)],
         components: [new ActionRowBuilder().addComponents(

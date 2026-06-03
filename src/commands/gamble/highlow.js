@@ -5,8 +5,6 @@ const { pregame } = require('../../utils/pregame');
 const { shuffledDeck, cardRank, trackWin } = require('../../utils/gambling');
 
 async function execute(interaction, user, bet) {
-    await user.save();
-
     const { started, msg } = await pregame(interaction, user, bet, {
         title: '🃏 High / Low',
         getEmbed: () => new EmbedBuilder()

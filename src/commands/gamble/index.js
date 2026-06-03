@@ -47,6 +47,7 @@ module.exports = {
             return interaction.reply({ content: '❌ Invalid bet or insufficient balance.', ephemeral: true });
 
         user.balance = parseFloat((user.balance - bet).toFixed(2));
+        await user.save();
 
         return GAMES[game].execute(interaction, user, bet);
     }

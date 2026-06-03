@@ -4,8 +4,6 @@ const { formatNumber } = require('../../utils/format');
 const { shuffledDeck, showHand, baccaratTotal, trackWin, applyBoost, refundTimeout } = require('../../utils/gambling');
 
 async function execute(interaction, user, bet) {
-    await user.save();
-
     const msg = await interaction.reply({
         embeds: [new EmbedBuilder().setTitle('🎰 Baccarat').setDescription(`Bet: **$${formatNumber(bet)}**\n\nPlayer (2x) | Banker (1.95x) | Tie (9x)\n\nPlace your bet!`).setColor(0x2b2d31)],
         components: [new ActionRowBuilder().addComponents(

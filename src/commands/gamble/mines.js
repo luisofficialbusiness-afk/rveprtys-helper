@@ -5,8 +5,6 @@ const { pregame, makeCancelStart } = require('../../utils/pregame');
 const { trackWin, applyBoost } = require('../../utils/gambling');
 
 async function execute(interaction, user, bet) {
-    await user.save();
-
     let gridSize  = 3;
     let mineCount = 3;
     const maxMines = () => gridSize * gridSize - 1;

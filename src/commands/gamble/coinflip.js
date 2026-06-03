@@ -4,8 +4,6 @@ const { formatNumber } = require('../../utils/format');
 const { trackWin, applyBoost, refundTimeout } = require('../../utils/gambling');
 
 async function execute(interaction, user, bet) {
-    await user.save();
-
     const msg = await interaction.reply({
         embeds: [new EmbedBuilder().setTitle('🪙 Coinflip').setDescription(`Bet: **$${formatNumber(bet)}**\n\nPick a side!`).setColor(0x2b2d31)],
         components: [new ActionRowBuilder().addComponents(

@@ -5,8 +5,6 @@ const { pregame, makeCancelStart } = require('../../utils/pregame');
 const { trackWin } = require('../../utils/gambling');
 
 async function execute(interaction, user, bet) {
-    await user.save();
-
     let autoLimit = null;
 
     const getEmbed = () => new EmbedBuilder()

@@ -4,8 +4,6 @@ const { formatNumber } = require('../../utils/format');
 const { HORSES, trackWin, applyBoost, refundTimeout } = require('../../utils/gambling');
 
 async function execute(interaction, user, bet) {
-    await user.save();
-
     const horseList = HORSES.map(h => `${h.emoji} **${h.name}** - ${h.odds}x`).join('\n');
     const rows = [
         new ActionRowBuilder().addComponents(HORSES.slice(0, 3).map((h, i) => new ButtonBuilder().setCustomId(`horse_${i}`).setLabel(`${h.name} (${h.odds}x)`).setStyle(ButtonStyle.Primary))),
