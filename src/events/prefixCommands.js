@@ -190,6 +190,11 @@ router
         return run('lottery', { getSubcommand: () => 'info', getString: n => n === 'type' ? args[0] : null });
     })
 
+    // Activity commands
+    .on('fish',   null, (args, msg, run) => run('fish',   {}))
+    .on('mine',   null, (args, msg, run) => run('mine',   {}))
+    .on('stream', null, (args, msg, run) => run('stream', {}))
+
     // Misc
     .on('beg',           null,            (args, msg, run) => run('beg', {}))
     .on('prestige',      'prestige',      (args, msg, run) => run('prestige', {}))

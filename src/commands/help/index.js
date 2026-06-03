@@ -20,12 +20,12 @@ module.exports = {
                 },
                 {
                     name: 'Jobs',
-                    value: '`/work work` - do your current job\n`/work jobs` - browse all jobs\n`/work apply` - apply for a job\n\nJob types: **Corporate** (tiers 1-9) | **Fisher** | **Miner** | **Streamer**\nActivity jobs run interactive mini-games and auto-tier based on your wealth.',
+                    value: '`/work work` - do your corporate job\n`/work jobs` - browse corporate jobs\n`/work apply` - apply for a corporate job (tiers 1-9)',
                     inline: false,
                 },
                 {
                     name: 'Activities',
-                    value: '`/crime` - commit a random crime\n`/search <location>` - search for money\n`/rob <user>` - rob someone\n`/duel <user>` - challenge someone to a duel\n`/shop browse` `/shop buy`',
+                    value: '`/fish` - go fishing (requires rod from shop)\n`/mine` - go mining (requires pickaxe from shop)\n`/stream` - start a livestream (requires keyboard, mouse & camera)\n`/crime` - commit a random crime\n`/search <location>` - search for money\n`/rob <user>` - rob someone\n`/duel <user>` - challenge someone to a duel\n`/shop browse` `/shop buy`',
                     inline: false,
                 },
                 {

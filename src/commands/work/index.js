@@ -2,10 +2,6 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUser, anticheat } = require('../../utils/economy');
 const Slave = require('../../models/slave');
 const { formatNumber } = require('../../utils/format');
-const { hasAnyItem, hasAllItems } = require('../../utils/inventory');
-const fishing   = require('./fishing');
-const mining    = require('./mining');
-const streaming = require('./streaming');
 
 const CORPORATE_COOLDOWN = 2 * 60 * 1000;
 
@@ -21,35 +17,8 @@ const CORPORATE_JOBS = [
     { id: 'board_of_directors', title: 'Board of Directors', tier: 9, multiplier: 5.0,  requiresBalance: 15_000_000, requiresPrestige: 4 },
 ];
 
-const ACTIVITY_JOBS = [
-    {
-        id: 'fisher', title: 'Fisher', category: 'fishing',
-        requiresBalance: 0, requiresPrestige: 0,
-        description: 'Fishing mini-game. Better spots unlock as you earn more.',
-        requiresAnyItem: ['fishing_rod_basic', 'fishing_rod_upgraded', 'fishing_rod_super'],
-        itemHint: 'Requires any fishing rod from the shop.',
-    },
-    {
-        id: 'miner', title: 'Miner', category: 'mining',
-        requiresBalance: 5_000, requiresPrestige: 0,
-        description: 'Mining mini-game. Deeper mines unlock as you earn more.',
-        requiresAnyItem: ['pickaxe_basic', 'pickaxe_iron', 'pickaxe_diamond'],
-        itemHint: 'Requires any pickaxe from the shop.',
-    },
-    {
-        id: 'streamer', title: 'Streamer', category: 'streaming',
-        requiresBalance: 10_000, requiresPrestige: 0,
-        description: 'Streaming mini-game. More categories unlock as you earn more.',
-        requiresAllItems: ['keyboard_mouse', 'camera'],
-        itemHint: 'Requires Keyboard & Mouse and Camera from the shop.',
-    },
-];
-
-const ACTIVITY_HANDLERS = { fisher: fishing, miner: mining, streamer: streaming };
-
 function getCorporateJob(id) { return CORPORATE_JOBS.find(j => j.id === id) || null; }
-function getActivityJob(id)  { return ACTIVITY_JOBS.find(j => j.id === id)  || null; }
-function findJob(id)         { return getCorporateJob(id) || getActivityJob(id) || null; }
+function findJob(id)         { return getCorporateJob(id) || null; }
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -69,9 +38,6 @@ module.exports = {
                     .setDescription('Job to apply for')
                     .setRequired(true)
                     .addChoices(
-                        { name: 'Fisher (fishing mini-game)',        value: 'fisher'             },
-                        { name: 'Miner (mining mini-game)',          value: 'miner'              },
-                        { name: 'Streamer (streaming mini-game)',    value: 'streamer'           },
                         { name: 'Tier 1: Intern (1x)',               value: 'intern'             },
                         { name: 'Tier 2: Greeting Person (1.15x)',   value: 'greeting_person'    },
                         { name: 'Tier 3: Low Level Employee (1.35x)',value: 'low_level_employee' },
@@ -91,15 +57,10 @@ module.exports = {
         const prestigeMult = user.prestigeMultiplier || 1;
         const jobMult      = user.jobMultiplier      || 1;
         const currentJobId = user.jobId || null;
-        const currentJob   = currentJobId ? findJob(currentJobId)      : null;
-        const activityJob  = currentJobId ? getActivityJob(currentJobId) : null;
+        const currentJob   = currentJobId ? findJob(currentJobId) : null;
         const totalWealth  = user.balance + user.bank;
 
         if (sub === 'work') {
-            if (activityJob) {
-                return ACTIVITY_HANDLERS[activityJob.id].execute(interaction, user);
-            }
-
             const now = Date.now();
             if (user.lastWork && now - user.lastWork < CORPORATE_COOLDOWN) {
                 const s = Math.ceil((CORPORATE_COOLDOWN - (now - user.lastWork)) / 1000);
@@ -146,22 +107,7 @@ module.exports = {
         }
 
         if (sub === 'jobs') {
-            const activityLines = ACTIVITY_JOBS.map(job => {
-                const isCurrent    = job.id === currentJobId;
-                const meetsBalance = totalWealth >= job.requiresBalance;
-                const meetsPres    = prestige >= job.requiresPrestige;
-                const meetsItems   = job.requiresAnyItem ? hasAnyItem(user, job.requiresAnyItem)
-                                   : job.requiresAllItems ? hasAllItems(user, job.requiresAllItems) : true;
-                let status;
-                if (isCurrent)       status = '✅ Current';
-                else if (!meetsItems)   status = `❌ ${job.itemHint}`;
-                else if (!meetsBalance) status = `❌ Need $${formatNumber(job.requiresBalance)}`;
-                else if (!meetsPres)    status = `❌ Need Prestige ${job.requiresPrestige}`;
-                else                    status = '✓ Available';
-                return `**${job.title}** - ${job.description}\n${status}`;
-            }).join('\n\n');
-
-            const corporateLines = CORPORATE_JOBS.map(job => {
+            const lines = CORPORATE_JOBS.map(job => {
                 const isCurrent    = job.id === currentJobId;
                 const meetsBalance = totalWealth >= job.requiresBalance;
                 const meetsPres    = prestige >= job.requiresPrestige;
@@ -174,8 +120,8 @@ module.exports = {
                     .setTitle('Economic Bomb Industries - Job Board')
                     .setDescription(
                         `**Current Job:** ${currentJob?.title ?? 'Unemployed'}\n\n` +
-                        `**Activity Jobs** - interactive mini-games\n${activityLines}\n\n` +
-                        `**Corporate Jobs** - passive income with multipliers\n${corporateLines}`
+                        `**Corporate Jobs** - passive income with multipliers\n${lines}\n\n` +
+                        `*For activity jobs (/fish, /mine, /stream) buy the required gear from /shop.*`
                     )
                     .setColor(0xFFD700)
                     .setFooter({ text: 'Use /work apply to switch jobs - Requirements use wallet + bank combined' })]
@@ -198,12 +144,6 @@ module.exports = {
                 ephemeral: true,
             });
 
-            const actJob = getActivityJob(jobId);
-            if (actJob?.requiresAnyItem && !hasAnyItem(user, actJob.requiresAnyItem))
-                return interaction.reply({ content: `❌ ${actJob.itemHint}`, ephemeral: true });
-            if (actJob?.requiresAllItems && !hasAllItems(user, actJob.requiresAllItems))
-                return interaction.reply({ content: `❌ ${actJob.itemHint}`, ephemeral: true });
-
             user.jobId         = job.id;
             user.jobMultiplier = job.multiplier ?? 1;
             await user.save();
@@ -211,11 +151,7 @@ module.exports = {
             return interaction.reply({
                 embeds: [new EmbedBuilder()
                     .setTitle('Application Accepted!')
-                    .setDescription(
-                        getActivityJob(jobId)
-                            ? `You are now a **${job.title}**.\n\nRun \`/work work\` to start your mini-game. Your tier improves automatically as your wealth grows.`
-                            : `Welcome to **${job.title}** at Economic Bomb Industries!\n\nNew work multiplier: **x${parseFloat((job.multiplier * prestigeMult).toFixed(2))}**`
-                    )
+                    .setDescription(`Welcome to **${job.title}** at Economic Bomb Industries!\n\nNew work multiplier: **x${parseFloat((job.multiplier * prestigeMult).toFixed(2))}**`)
                     .setColor(0x00FF99)]
             });
         }
