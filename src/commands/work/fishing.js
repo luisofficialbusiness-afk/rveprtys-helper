@@ -116,6 +116,7 @@ async function doCast(msg, interaction, user) {
                     .setFooter({ text: footerText(rod, getTier(user.balance + user.bank), user, bucket) })],
                 components: [actionRow(user, bucket)],
             });
+            attachActionCollector(msg, interaction, user);
             return;
         }
     }
@@ -130,6 +131,7 @@ async function doCast(msg, interaction, user) {
                 .setFooter({ text: footerText(rod, getTier(user.balance + user.bank), user, bucket) })],
             components: [actionRow(user, bucket)],
         });
+        attachActionCollector(msg, interaction, user);
         return;
     }
 
@@ -155,6 +157,7 @@ async function doCast(msg, interaction, user) {
                 .setFooter({ text: `${tier.label}  ·  ${bucketCount(user)}/${bucket.slots} items` })],
             components: [actionRow(user, bucket)],
         });
+        attachActionCollector(msg, interaction, user);
         return;
     }
 
