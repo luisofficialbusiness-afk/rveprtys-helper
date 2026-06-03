@@ -101,8 +101,9 @@ async function recordSales(guildId, items) {
 }
 
 function pickItem(loc, skip, useBait) {
-    let table = [...TABLES[loc]].slice(skip);
-    if (useBait && table.length > 1) table = table.map((e, i) => i === 0 ? [e[0], Math.floor(e[1] / 2)] : e);
+    // Bait bumps the effective skip by 1 - removes one extra low-tier entry from the table
+    const effectiveSkip = useBait ? Math.min(skip + 1, TABLES[loc].length - 1) : skip;
+    let table = [...TABLES[loc]].slice(effectiveSkip);
     const total = table.reduce((a, e) => a + e[1], 0);
     let r = Math.random() * total;
     for (const [id, w] of table) { r -= w; if (r <= 0) return id; }
@@ -193,7 +194,7 @@ async function handleCast(interaction) {
     user.fishRodDurability = Math.max(0, (user.fishRodDurability ?? rod.durability) - 1);
     const rodBroke         = user.fishRodDurability === 0;
     if (rodBroke) user.inventory = (user.inventory || []).filter(i => i.item !== rod.id);
-    const useBait = consumeItem(user, 'fishing_bait');
+    const hasBait = hasItem(user, 'fishing_bait');
     await user.save();
 
     if (rodBroke) {
@@ -216,12 +217,12 @@ async function handleCast(interaction) {
     }
 
     // Encode state directly into the button custom ID - no DB write needed
-    const itemOnLine = isBomb ? 'bomb' : pickItem(tier.loc, rod.stats.skip, !!useBait);
+    const itemOnLine = isBomb ? 'bomb' : pickItem(tier.loc, rod.stats.skip, hasBait);
     const reelWindow = rand(2500, 4000);
     const expiresAt  = Date.now() + reelWindow;
 
-    // fish_reel:TIER:ITEM:EXPIRES  (max ~55 chars, well under 100 limit)
-    const reelId = `fish_reel:${tier.loc}:${itemOnLine}:${expiresAt}`;
+    // fish_reel:TIER:ITEM:EXPIRES:BAIT  (max ~57 chars, well under 100 limit)
+    const reelId = `fish_reel:${tier.loc}:${itemOnLine}:${expiresAt}:${hasBait ? 1 : 0}`;
     const cutId  = `fish_cut:${expiresAt}`;
 
     const biteButtons = [
@@ -237,8 +238,8 @@ async function handleCast(interaction) {
 
 async function handleReel(interaction) {
     await interaction.deferUpdate();
-    // Parse state from the custom ID: fish_reel:TIER:ITEM:EXPIRES
-    const [, tierLoc, itemOnLine, expiresStr] = interaction.customId.split(':');
+    // Parse state from the custom ID: fish_reel:TIER:ITEM:EXPIRES:BAIT
+    const [, tierLoc, itemOnLine, expiresStr, baitStr] = interaction.customId.split(':');
     const expiresAt = parseInt(expiresStr);
 
     const user   = await getUser(interaction.user.id, interaction.guild.id);
@@ -284,13 +285,16 @@ async function handleReel(interaction) {
         return;
     }
 
+    const hadBait = baitStr === '1';
+    if (hadBait) consumeItem(user, 'fishing_bait');
+
     let catchCount = 1;
     if (rodStats.multiChance > 0 && Math.random() < rodStats.multiChance) catchCount = rodStats.multiCount;
     catchCount = Math.min(catchCount, bucket.slots - bucketCount(user));
 
     const caught = [];
     for (let k = 0; k < catchCount; k++) {
-        const id = k === 0 ? itemOnLine : pickItem(tierLoc, rodStats.skip, false);
+        const id = k === 0 ? itemOnLine : pickItem(tierLoc, rodStats.skip, hadBait && k === 1);
         caught.push(id);
         if (!user.fishBucket) user.fishBucket = [];
         const ex = user.fishBucket.find(e => e.item === id);
