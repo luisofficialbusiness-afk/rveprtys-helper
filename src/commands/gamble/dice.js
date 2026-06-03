@@ -1,9 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
-const { anticheat } = require('../../utils/economy');
 const { formatNumber } = require('../../utils/format');
-const { trackWin, applyBoost } = require('../../utils/gambling');
 
-async function execute(interaction, user, bet) {
+async function execute(interaction, user, bet, settle) {
     const userRoll = Math.floor(Math.random() * 6) + 1;
     const botRoll  = Math.floor(Math.random() * 6) + 1;
     let winnings = 0, text, color;
@@ -21,11 +19,7 @@ async function execute(interaction, user, bet) {
         color = 0xff0000;
     }
 
-    if (winnings > 0) ({ winnings, text } = applyBoost(user, winnings, text));
-    user.balance = parseFloat((user.balance + winnings).toFixed(2));
-    trackWin(user, winnings, bet);
-    await user.save();
-    await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+    ({ winnings, text } = await settle(winnings, text));
     return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🎲 Dice Roll').setDescription(text).setColor(color)] });
 }
 

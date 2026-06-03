@@ -1,9 +1,8 @@
 const { EmbedBuilder } = require('discord.js');
-const { anticheat } = require('../../utils/economy');
 const { formatNumber } = require('../../utils/format');
-const { SYMBOLS, trackWin, applyBoost } = require('../../utils/gambling');
+const { SYMBOLS } = require('../../utils/gambling');
 
-async function execute(interaction, user, bet) {
+async function execute(interaction, user, bet, settle) {
     const spin = [0, 1, 2].map(() => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
     let winnings = 0, text;
 
@@ -17,11 +16,7 @@ async function execute(interaction, user, bet) {
         text = `${spin.join(' | ')}\n\nYou lost **$${formatNumber(bet)}**.`;
     }
 
-    if (winnings > 0) ({ winnings, text } = applyBoost(user, winnings, text));
-    user.balance = parseFloat((user.balance + winnings).toFixed(2));
-    trackWin(user, winnings, bet);
-    await user.save();
-    await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+    ({ winnings, text } = await settle(winnings, text));
     return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🎰 Slots').setDescription(text).setColor(winnings ? 0x00ff00 : 0xff0000)] });
 }
 

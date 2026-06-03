@@ -1,10 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const { anticheat } = require('../../utils/economy');
 const { formatNumber } = require('../../utils/format');
 const { pregame, makeCancelStart } = require('../../utils/pregame');
-const { trackWin } = require('../../utils/gambling');
 
-async function execute(interaction, user, bet) {
+async function execute(interaction, user, bet, settle) {
     let autoLimit = null;
 
     const getEmbed = () => new EmbedBuilder()
@@ -34,7 +32,6 @@ async function execute(interaction, user, bet) {
             await sub.update({ embeds: [getEmbed()], components: [...getOptionRows(), makeCancelStart()] });
         },
     });
-
     if (!started) return;
 
     const r       = Math.random();
@@ -57,14 +54,12 @@ async function execute(interaction, user, bet) {
         cashedOut = true;
         clearInterval(interval);
         gameCollector.stop('done');
-        let payout = parseFloat((bet * mult).toFixed(2));
-        let note   = '';
-        if ((user.gamblingBoostExpires ?? 0) > Date.now() && payout > bet) { payout = parseFloat((payout * 1.05).toFixed(2)); note = '\n🛟 *+5% lifesaver boost*'; }
-        user.balance = parseFloat((user.balance + payout).toFixed(2));
-        trackWin(user, payout, bet);
-        await user.save();
-        await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
-        const embed = new EmbedBuilder().setTitle('🚀 Crash').setDescription(`Cashed out at **${mult.toFixed(2)}x**! You won **$${formatNumber(payout)}**!${note}`).addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true }).setColor(0x00ff00);
+        const raw = parseFloat((bet * mult).toFixed(2));
+        const { winnings: payout, text: note } = await settle(raw, '');
+        const embed = new EmbedBuilder().setTitle('🚀 Crash')
+            .setDescription(`Cashed out at **${mult.toFixed(2)}x**! You won **$${formatNumber(payout)}**!${note}`)
+            .addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true })
+            .setColor(0x00ff00);
         if (buttonInteraction) await buttonInteraction.update({ embeds: [embed], components: [] });
         else await msg.edit({ embeds: [embed], components: [] }).catch(() => {});
     };
@@ -76,18 +71,14 @@ async function execute(interaction, user, bet) {
     interval = setInterval(async () => {
         if (cashedOut || crashed) { clearInterval(interval); return; }
         current = parseFloat((current * 1.08).toFixed(2));
-
         if (autoLimit && current >= autoLimit && !cashedOut && !crashed) { clearInterval(interval); await doCashout(autoLimit); return; }
-
         if (current >= crashAt) {
             clearInterval(interval);
             if (cashedOut) return;
             crashed = true;
             gameCollector.stop('crashed');
-            trackWin(user, 0, bet);
-            await user.save();
+            await settle(0);
             if (cashedOut) return;
-            await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
             await msg.edit({ embeds: [new EmbedBuilder().setTitle('🚀 Crash').setDescription(`Crashed at **${crashAt.toFixed(2)}x**!\nYou lost **$${formatNumber(bet)}**.`).setColor(0xff0000)], components: [] }).catch(() => {});
         } else {
             await msg.edit({ embeds: [crashEmbed(current)], components: [cashBtn(current)] }).catch(() => {});

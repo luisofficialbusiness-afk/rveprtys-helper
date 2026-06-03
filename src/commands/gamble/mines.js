@@ -1,10 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { anticheat } = require('../../utils/economy');
 const { formatNumber } = require('../../utils/format');
 const { pregame, makeCancelStart } = require('../../utils/pregame');
-const { trackWin, applyBoost } = require('../../utils/gambling');
 
-async function execute(interaction, user, bet) {
+async function execute(interaction, user, bet, settle) {
     let gridSize  = 3;
     let mineCount = 3;
     const maxMines = () => gridSize * gridSize - 1;
@@ -40,7 +38,6 @@ async function execute(interaction, user, bet) {
             await i.update({ embeds: [getEmbed()], components: [...getOptionRows(), makeCancelStart()] });
         },
     });
-
     if (!started) return;
 
     const is5x5   = gridSize === 5;
@@ -93,7 +90,6 @@ async function execute(interaction, user, bet) {
 
     let cashoutMsg = null;
     if (is5x5) cashoutMsg = await interaction.followUp({ components: [cashoutRow()], fetchReply: true });
-
     const clearCashoutMsg = () => cashoutMsg?.edit({ components: [] }).catch(() => {});
 
     const gameCollector = msg.createMessageComponentCollector({ filter: j => j.user.id === interaction.user.id, time: 300000 });
@@ -101,14 +97,9 @@ async function execute(interaction, user, bet) {
     const doCashout = async (j = null, fromCashoutMsg = false) => {
         gameOver = true;
         gameCollector.stop('cashout');
-        let payout = parseFloat((bet * multiplier).toFixed(2));
-        let note   = '';
-        ({ winnings: payout, text: note } = applyBoost(user, payout, note));
-        user.balance = parseFloat((user.balance + payout).toFixed(2));
-        trackWin(user, payout, bet);
-        await user.save();
-        await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
-        const embed      = minesEmbed('cashout');
+        const raw = parseFloat((bet * multiplier).toFixed(2));
+        await settle(raw, '');
+        const embed = minesEmbed('cashout');
         const components = buildGrid(true);
         if (fromCashoutMsg && j) { await j.update({ components: [] }); await msg.edit({ embeds: [embed], components }).catch(() => {}); }
         else if (j) { await j.update({ embeds: [embed], components }); await clearCashoutMsg(); }
@@ -130,8 +121,7 @@ async function execute(interaction, user, bet) {
 
         if (mineSet.has(idx)) {
             gameOver = true; gameCollector.stop('boom');
-            trackWin(user, 0, bet); await user.save();
-            await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+            await settle(0);
             await clearCashoutMsg();
             await j.update({ embeds: [minesEmbed('boom')], components: buildGrid(true) });
             return;
@@ -142,11 +132,8 @@ async function execute(interaction, user, bet) {
 
         if (safeReveals === total - mineCount) {
             gameOver = true; gameCollector.stop('cleared');
-            let payout = parseFloat((bet * multiplier).toFixed(2)), note = '';
-            ({ winnings: payout, text: note } = applyBoost(user, payout, note));
-            user.balance = parseFloat((user.balance + payout).toFixed(2));
-            trackWin(user, payout, bet); await user.save();
-            await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+            const raw = parseFloat((bet * multiplier).toFixed(2));
+            await settle(raw, '');
             await clearCashoutMsg();
             await j.update({ embeds: [minesEmbed('cleared')], components: buildGrid(true) });
             return;

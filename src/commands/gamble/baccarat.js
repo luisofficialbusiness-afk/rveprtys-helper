@@ -1,9 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { anticheat } = require('../../utils/economy');
 const { formatNumber } = require('../../utils/format');
-const { shuffledDeck, showHand, baccaratTotal, trackWin, applyBoost, refundTimeout } = require('../../utils/gambling');
+const { shuffledDeck, showHand, baccaratTotal, refundTimeout } = require('../../utils/gambling');
 
-async function execute(interaction, user, bet) {
+async function execute(interaction, user, bet, settle) {
     const msg = await interaction.reply({
         embeds: [new EmbedBuilder().setTitle('🎰 Baccarat').setDescription(`Bet: **$${formatNumber(bet)}**\n\nPlayer (2x) | Banker (1.95x) | Tie (9x)\n\nPlace your bet!`).setColor(0x2b2d31)],
         components: [new ActionRowBuilder().addComponents(
@@ -30,26 +29,21 @@ async function execute(interaction, user, bet) {
             bTotal = baccaratTotal(bHand);
         }
         const winner = pTotal > bTotal ? 'player' : bTotal > pTotal ? 'banker' : 'tie';
-        let winnings = 0, bacLine;
+        let winnings = 0, line;
         if (winner === 'tie' && choice !== 'tie') {
-            winnings = bet;
-            bacLine  = `It's a **tie**! Your bet is pushed back.`;
+            winnings = bet; line = `It's a **tie**! Your bet is pushed back.`;
         } else if (choice === winner) {
             if (choice === 'player')  winnings = parseFloat((bet * 2).toFixed(2));
             else if (choice === 'banker') winnings = parseFloat((bet * 1.95).toFixed(2));
             else winnings = parseFloat((bet * 9).toFixed(2));
-            bacLine = `You bet on **${choice}** and won **$${formatNumber(winnings)}**!`;
+            line = `You bet on **${choice}** and won **$${formatNumber(winnings)}**!`;
         } else {
-            bacLine = `**${winner.charAt(0).toUpperCase() + winner.slice(1)}** wins. You lost **$${formatNumber(bet)}**.`;
+            line = `**${winner.charAt(0).toUpperCase() + winner.slice(1)}** wins. You lost **$${formatNumber(bet)}**.`;
         }
-        ({ winnings, text: bacLine } = applyBoost(user, winnings, bacLine));
-        user.balance = parseFloat((user.balance + winnings).toFixed(2));
-        trackWin(user, winnings, bet);
-        await user.save();
-        await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+        ({ winnings, text: line } = await settle(winnings, line));
         await i.update({
             embeds: [new EmbedBuilder().setTitle('🎰 Baccarat')
-                .setDescription(`**Player:** ${showHand(pHand)} = **${pTotal}**\n**Banker:** ${showHand(bHand)} = **${bTotal}**\n\n${bacLine}`)
+                .setDescription(`**Player:** ${showHand(pHand)} = **${pTotal}**\n**Banker:** ${showHand(bHand)} = **${bTotal}**\n\n${line}`)
                 .addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true }, { name: '🎯 You Bet On', value: choice, inline: true })
                 .setColor(winnings > bet ? 0x00ff00 : winnings > 0 ? 0xffff00 : 0xff0000)],
             components: [],

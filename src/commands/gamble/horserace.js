@@ -1,9 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { anticheat } = require('../../utils/economy');
 const { formatNumber } = require('../../utils/format');
-const { HORSES, trackWin, applyBoost, refundTimeout } = require('../../utils/gambling');
+const { HORSES, refundTimeout } = require('../../utils/gambling');
 
-async function execute(interaction, user, bet) {
+async function execute(interaction, user, bet, settle) {
     const horseList = HORSES.map(h => `${h.emoji} **${h.name}** - ${h.odds}x`).join('\n');
     const rows = [
         new ActionRowBuilder().addComponents(HORSES.slice(0, 3).map((h, i) => new ButtonBuilder().setCustomId(`horse_${i}`).setLabel(`${h.name} (${h.odds}x)`).setStyle(ButtonStyle.Primary))),
@@ -31,20 +30,16 @@ async function execute(interaction, user, bet) {
 
         const raceLines = HORSES.map((h, j) => `${j === winnerIdx ? '🥇' : '   '} ${h.emoji} ${h.name}`).join('\n');
 
-        let winnings = 0, resultText;
+        let winnings = 0, text;
         if (winnerIdx === idx) {
-            winnings   = parseFloat((bet * pick.odds).toFixed(2));
-            resultText = `Your horse **${pick.name}** won! You won **$${formatNumber(winnings)}**!`;
+            winnings = parseFloat((bet * pick.odds).toFixed(2));
+            text     = `Your horse **${pick.name}** won! You won **$${formatNumber(winnings)}**!`;
         } else {
-            resultText = `**${winner.name}** won the race. Your horse **${pick.name}** lost **$${formatNumber(bet)}**.`;
+            text = `**${winner.name}** won the race. Your horse **${pick.name}** lost **$${formatNumber(bet)}**.`;
         }
-        ({ winnings, text: resultText } = applyBoost(user, winnings, resultText));
-        user.balance = parseFloat((user.balance + winnings).toFixed(2));
-        trackWin(user, winnings, bet);
-        await user.save();
-        await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+        ({ winnings, text } = await settle(winnings, text));
         await i.update({
-            embeds: [new EmbedBuilder().setTitle('🏇 Horse Race Results').setDescription(`${raceLines}\n\n${resultText}`).addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true }).setColor(winnings > 0 ? 0x00ff00 : 0xff0000)],
+            embeds: [new EmbedBuilder().setTitle('🏇 Horse Race Results').setDescription(`${raceLines}\n\n${text}`).addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true }).setColor(winnings > 0 ? 0x00ff00 : 0xff0000)],
             components: [],
         });
     });

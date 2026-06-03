@@ -1,9 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { anticheat } = require('../../utils/economy');
 const { formatNumber } = require('../../utils/format');
-const { RED_NUMS, trackWin, applyBoost, refundTimeout } = require('../../utils/gambling');
+const { RED_NUMS, refundTimeout } = require('../../utils/gambling');
 
-async function execute(interaction, user, bet) {
+async function execute(interaction, user, bet, settle) {
     const msg = await interaction.reply({
         embeds: [new EmbedBuilder().setTitle('🎡 Roulette').setDescription(`Bet: **$${formatNumber(bet)}**\n\n🔴 Red (2x) | ⚫ Black (2x) | 🟢 Green / 0 (35x)\n\nPlace your bet!`).setColor(0x2b2d31)],
         components: [new ActionRowBuilder().addComponents(
@@ -28,11 +27,7 @@ async function execute(interaction, user, bet) {
         } else {
             text = `${emoji} **${spin}**\nYou bet **${pick}** - You lost **$${formatNumber(bet)}**.`;
         }
-        ({ winnings, text } = applyBoost(user, winnings, text));
-        user.balance = parseFloat((user.balance + winnings).toFixed(2));
-        trackWin(user, winnings, bet);
-        await user.save();
-        await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+        ({ winnings, text } = await settle(winnings, text));
         await i.update({
             embeds: [new EmbedBuilder().setTitle('🎡 Roulette').setDescription(text).addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true }).setColor(winnings ? 0x00ff00 : 0xff0000)],
             components: [],

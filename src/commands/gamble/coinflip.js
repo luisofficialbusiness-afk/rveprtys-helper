@@ -1,9 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { anticheat } = require('../../utils/economy');
 const { formatNumber } = require('../../utils/format');
-const { trackWin, applyBoost, refundTimeout } = require('../../utils/gambling');
+const { refundTimeout } = require('../../utils/gambling');
 
-async function execute(interaction, user, bet) {
+async function execute(interaction, user, bet, settle) {
     const msg = await interaction.reply({
         embeds: [new EmbedBuilder().setTitle('🪙 Coinflip').setDescription(`Bet: **$${formatNumber(bet)}**\n\nPick a side!`).setColor(0x2b2d31)],
         components: [new ActionRowBuilder().addComponents(
@@ -18,18 +17,11 @@ async function execute(interaction, user, bet) {
     collector.on('collect', async i => {
         const pick   = i.customId === 'cf_heads' ? 'heads' : 'tails';
         const result = Math.random() < 0.5 ? 'heads' : 'tails';
-        let winnings = 0, text;
-        if (pick === result) {
-            winnings = parseFloat((bet * 2).toFixed(2));
-            text = `Coin landed on **${result}**\nYou won **$${formatNumber(winnings)}**!`;
-        } else {
-            text = `Coin landed on **${result}**\nYou lost **$${formatNumber(bet)}**.`;
-        }
-        ({ winnings, text } = applyBoost(user, winnings, text));
-        user.balance = parseFloat((user.balance + winnings).toFixed(2));
-        trackWin(user, winnings, bet);
-        await user.save();
-        await anticheat(interaction.client, interaction.user.id, interaction.guild.id);
+        let winnings = pick === result ? parseFloat((bet * 2).toFixed(2)) : 0;
+        let text     = pick === result
+            ? `Coin landed on **${result}**\nYou won **$${formatNumber(winnings)}**!`
+            : `Coin landed on **${result}**\nYou lost **$${formatNumber(bet)}**.`;
+        ({ winnings, text } = await settle(winnings, text));
         await i.update({
             embeds: [new EmbedBuilder().setTitle('🪙 Coinflip').setDescription(text).addFields({ name: '💵 New Balance', value: `$${formatNumber(user.balance)}`, inline: true }).setColor(winnings ? 0x00ff00 : 0xff0000)],
             components: [],
