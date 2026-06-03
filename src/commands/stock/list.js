@@ -11,8 +11,8 @@ async function execute(interaction) {
         const prev   = s.history.length >= 2 ? s.history[s.history.length - 2] : s.price;
         const change = s.price - prev;
         const pct    = ((change / prev) * 100).toFixed(2);
-        const arrow  = change > 0 ? '▲' : change < 0 ? '▼' : '-';
-        return `${arrow} \`${s.ticker.padEnd(4)}\` **${s.name}** - $${formatNumber(s.price)} (${change >= 0 ? '+' : ''}${pct}%)`;
+        const circle = change > 0 ? '🟢' : change < 0 ? '🔴' : '⚪';
+        return `${circle} \`${s.ticker.padEnd(4)}\` **${s.name}** - $${formatNumber(s.price)} (${change >= 0 ? '+' : ''}${pct}%)`;
     }).join('\n');
 
     return interaction.reply({

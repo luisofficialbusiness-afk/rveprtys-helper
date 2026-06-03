@@ -72,8 +72,20 @@ client.once('ready', () => {
     setInterval(async () => {
         const stocks = await Stock.find();
         for (const stock of stocks) {
-            const change   = 1 + (Math.random() * 0.06 - 0.03);
-            const newPrice = Math.max(0.01, parseFloat((stock.price * change).toFixed(2)));
+            // Base move: ±8% per tick
+            let multiplier = 1 + (Math.random() * 0.16 - 0.08);
+
+            // Market event (12% chance): bigger swing
+            const roll = Math.random();
+            if (roll < 0.04) {
+                multiplier *= 1 + (0.15 + Math.random() * 0.25); // spike: +15-40%
+            } else if (roll < 0.08) {
+                multiplier *= 1 - (0.15 + Math.random() * 0.25); // crash: -15-40%
+            } else if (roll < 0.12) {
+                multiplier *= 1 + (Math.random() * 0.30 - 0.15); // wild swing: ±15-30%
+            }
+
+            const newPrice = Math.max(0.01, parseFloat((stock.price * multiplier).toFixed(2)));
             stock.history.push(newPrice);
             if (stock.history.length > 30) stock.history.shift();
             stock.price = newPrice;
