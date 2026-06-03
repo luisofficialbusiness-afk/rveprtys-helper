@@ -215,37 +215,32 @@ async function handleCast(interaction) {
         return;
     }
 
-    // Store state for reel handler
+    // Encode state directly into the button custom ID - no DB write needed
     const itemOnLine = isBomb ? 'bomb' : pickItem(tier.loc, rod.stats.skip, !!useBait);
     const reelWindow = rand(2500, 4000);
-    user.fishingState = { onLine: itemOnLine, tier: tier.loc, expiresAt: Date.now() + reelWindow };
-    await user.save();
+    const expiresAt  = Date.now() + reelWindow;
+
+    // fish_reel:TIER:ITEM:EXPIRES  (max ~55 chars, well under 100 limit)
+    const reelId = `fish_reel:${tier.loc}:${itemOnLine}:${expiresAt}`;
+    const cutId  = `fish_cut:${expiresAt}`;
 
     const biteButtons = [
-        new ButtonBuilder().setCustomId('fish_reel').setLabel('Reel In').setStyle(ButtonStyle.Success),
-        ...(isBomb ? [new ButtonBuilder().setCustomId('fish_cut').setLabel('Cut Line').setStyle(ButtonStyle.Danger)] : []),
+        new ButtonBuilder().setCustomId(reelId).setLabel('Reel In').setStyle(ButtonStyle.Success),
+        ...(isBomb ? [new ButtonBuilder().setCustomId(cutId).setLabel('Cut Line').setStyle(ButtonStyle.Danger)] : []),
     ];
     const biteText = isBomb
         ? 'Something is pulling hard. Feels different from a normal fish.'
         : `Something on the line at the **${tier.label}**.`;
 
     await msg.edit(buildPanel('Fishing', biteText, footer, biteButtons));
-
-    // Auto-expire the reel window if user doesn't click
-    setTimeout(async () => {
-        try {
-            const fresh = await getUser(interaction.user.id, interaction.guild.id);
-            if (!fresh.fishingState?.onLine) return; // already handled
-            fresh.fishingState = { onLine: null, tier: null, expiresAt: 0 };
-            await fresh.save();
-            const sell = await calcSellTotal(interaction.guild.id, fresh.fishBucket, bucket.sellMultiplier ?? 1);
-            await msg.edit(buildPanel('Fishing', 'Too slow.', statusFooter(rod, tier, fresh, bucket), mainButtons(sell)));
-        } catch {}
-    }, reelWindow + 500);
 }
 
 async function handleReel(interaction) {
     await interaction.deferUpdate();
+    // Parse state from the custom ID: fish_reel:TIER:ITEM:EXPIRES
+    const [, tierLoc, itemOnLine, expiresStr] = interaction.customId.split(':');
+    const expiresAt = parseInt(expiresStr);
+
     const user   = await getUser(interaction.user.id, interaction.guild.id);
     const rod    = getRod(user);
     const bucket = getBucket(user);
@@ -254,19 +249,14 @@ async function handleReel(interaction) {
     const tier   = getTier(user.balance + user.bank);
     const footer = statusFooter(rod, tier, user, bucket);
     const msg    = interaction.message;
-    const state  = user.fishingState;
 
-    if (!state?.onLine || Date.now() > state.expiresAt) {
+    if (Date.now() > expiresAt) {
         const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
         await msg.edit(buildPanel('Fishing', 'Too slow - it got away.', footer, mainButtons(sell)));
-        user.fishingState = { onLine: null, tier: null, expiresAt: 0 };
-        await user.save();
         return;
     }
 
-    user.fishingState = { onLine: null, tier: null, expiresAt: 0 };
-
-    if (state.onLine === 'bomb') {
+    if (itemOnLine === 'bomb') {
         const bucket_ = user.fishBucket || [];
         const lost    = [];
         const n       = Math.min(rand(1, 3), bucket_.length);
@@ -289,7 +279,6 @@ async function handleReel(interaction) {
 
     const rodStats = rod.stats;
     if (Math.random() < rodStats.snapChance) {
-        await user.save();
         const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
         await msg.edit(buildPanel('Fishing', 'Line snapped.', footer, mainButtons(sell)));
         return;
@@ -301,7 +290,7 @@ async function handleReel(interaction) {
 
     const caught = [];
     for (let k = 0; k < catchCount; k++) {
-        const id = k === 0 ? state.onLine : pickItem(state.tier, rodStats.skip, false);
+        const id = k === 0 ? itemOnLine : pickItem(tierLoc, rodStats.skip, false);
         caught.push(id);
         if (!user.fishBucket) user.fishBucket = [];
         const ex = user.fishBucket.find(e => e.item === id);
@@ -317,11 +306,11 @@ async function handleReel(interaction) {
         return `${c.emoji} **${c.name}**  ·  $${formatNumber(price)}`;
     }));
 
-    const newCount   = bucketCount(user);
-    const sellTotal  = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-    const full       = newCount >= bucket.slots;
-    const title      = isMonster ? 'Fishing  -  Monster Catch' : catchCount > 1 ? `Fishing  -  ${catchCount}x Catch` : 'Fishing';
-    const body       = lines.join('\n') + `\n\n${newCount}/${bucket.slots} in bucket` + (full ? '\nBucket full. Sell before casting again.' : '');
+    const newCount  = bucketCount(user);
+    const sellTotal = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
+    const full      = newCount >= bucket.slots;
+    const title     = isMonster ? 'Fishing  -  Monster Catch' : catchCount > 1 ? `Fishing  -  ${catchCount}x Catch` : 'Fishing';
+    const body      = lines.join('\n') + `\n\n${newCount}/${bucket.slots} in bucket` + (full ? '\nBucket full. Sell before casting again.' : '');
 
     await msg.edit(buildPanel(title, body, statusFooter(rod, tier, user, bucket), mainButtons(sellTotal)));
 }
@@ -333,11 +322,8 @@ async function handleCut(interaction) {
     const bucket = getBucket(user);
     if (!rod || !bucket) return;
 
-    user.fishingState = { onLine: null, tier: null, expiresAt: 0 };
-    await user.save();
-
-    const tier  = getTier(user.balance + user.bank);
-    const sell  = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
+    const tier = getTier(user.balance + user.bank);
+    const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
     await interaction.message.edit(buildPanel('Fishing', 'Line cut.', statusFooter(rod, tier, user, bucket), mainButtons(sell)));
 }
 
