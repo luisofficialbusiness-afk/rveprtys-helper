@@ -3,6 +3,7 @@ const fetch = require('node-fetch');
 const Slave = require('../models/slave');
 const { getUser } = require('../utils/economy');
 const { formatNumber } = require('../utils/format');
+const { handleCast, handleReel, handleCut, handleSell } = require('../commands/work/fishing');
 
 module.exports = {
     name: 'interactionCreate',
@@ -14,6 +15,11 @@ module.exports = {
 
         if (interaction.isButton()) {
             const guildId = interaction.guild.id;
+
+            if (interaction.customId === 'fish_cast')  return handleCast(interaction);
+            if (interaction.customId === 'fish_reel')  return handleReel(interaction);
+            if (interaction.customId === 'fish_cut')   return handleCut(interaction);
+            if (interaction.customId === 'fish_sell')  return handleSell(interaction);
 
             if (interaction.customId.startsWith('slave_free_')) {
                 const targetId = interaction.customId.split('_')[2];
