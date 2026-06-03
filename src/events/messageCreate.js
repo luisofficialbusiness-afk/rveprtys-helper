@@ -19,6 +19,9 @@ const MODULE_MAP = {
     leaderboard:   ['leaderboard', 'lb', 'bankleaderboard', 'blb', 'gleaderboard', 'glb', 'gbankleaderboard', 'gblb'],
     notifications: ['notifications'],
     prestige:      ['prestige'],
+    fish:          ['fish'],
+    mine:          ['mine'],
+    stream:        ['stream'],
 };
 
 const SEARCH_MAP = {
@@ -240,6 +243,10 @@ module.exports = {
         if (cmd === 'beg')           return run('beg', {});
         if (cmd === 'prestige')      return run('prestige', {});
         if (cmd === 'notifications') return run('notifications', {});
+
+        if (cmd === 'fish')   return run('fish',   { getString: n => n === 'location' ? args[0]?.toLowerCase() : null });
+        if (cmd === 'mine')   return run('mine',   { getString: n => n === 'tier'     ? args[0]?.toLowerCase() : null });
+        if (cmd === 'stream') return run('stream', { getString: n => n === 'category' ? args[0]?.toLowerCase() : null });
 
         if (cmd === 'shop') {
             const sub = args.shift()?.toLowerCase();
