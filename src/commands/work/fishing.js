@@ -312,7 +312,7 @@ async function doCast(msg, interaction, user) {
 function attachActionCollector(msg, interaction, user) {
     const collector = msg.createMessageComponentCollector({
         filter: i => i.user.id === interaction.user.id,
-        idle: 120000,
+        idle: 600000,
         max: 1,
     });
 
@@ -361,7 +361,9 @@ function attachActionCollector(msg, interaction, user) {
     });
 
     collector.on('end', (_, reason) => {
-        if (reason === 'idle') msg.edit({ components: [] }).catch(() => {});
+        if (reason === 'idle') {
+            msg.edit(buildMessage('Fishing', 'Session expired. Run `/fish` to start again.', null, [])).catch(() => {});
+        }
     });
 }
 
