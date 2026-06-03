@@ -17,28 +17,41 @@ const client = new Client({
 
 client.commands = new Collection();
 
+function resolveCommandPaths() {
+    const paths = [];
+    for (const entry of fs.readdirSync('./src/commands')) {
+        const full = `./src/commands/${entry}`;
+        if (entry.endsWith('.js')) {
+            paths.push(full);
+        } else if (fs.statSync(full).isDirectory() && fs.existsSync(`${full}/index.js`)) {
+            paths.push(`${full}/index.js`);
+        }
+    }
+    return paths;
+}
+
 function loadCommands() {
     client.commands.clear();
-    for (const file of fs.readdirSync('./src/commands').filter(f => f.endsWith('.js'))) {
+    for (const path of resolveCommandPaths()) {
         try {
-            delete require.cache[require.resolve(`./src/commands/${file}`)];
-            const command = require(`./src/commands/${file}`);
-            client.commands.set(command.data.name, command);
+            delete require.cache[require.resolve(path)];
+            const command = require(path);
+            if (command?.data?.name) client.commands.set(command.data.name, command);
         } catch (e) {
-            console.error(`Failed to load ${file}:`, e.message);
+            console.error(`Failed to load ${path}:`, e.message);
         }
     }
 }
 
 async function deployCommands() {
     const commands = [];
-    for (const file of fs.readdirSync('./src/commands').filter(f => f.endsWith('.js'))) {
+    for (const path of resolveCommandPaths()) {
         try {
-            delete require.cache[require.resolve(`./src/commands/${file}`)];
-            const cmd = require(`./src/commands/${file}`);
+            delete require.cache[require.resolve(path)];
+            const cmd = require(path);
             if (cmd?.data?.toJSON) commands.push(cmd.data.toJSON());
         } catch (e) {
-            console.error(`Failed to read ${file}:`, e.message);
+            console.error(`Failed to read ${path}:`, e.message);
         }
     }
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
