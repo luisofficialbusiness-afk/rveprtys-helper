@@ -174,11 +174,11 @@ async function handleCast(interaction) {
     const footer  = statusFooter(rod, tier, user, bucket);
     const msg     = interaction.message;
 
-    const now = Date.now();
+    const now     = Date.now();
     if (now - (user.lastFishCast ?? 0) < COOLDOWN) {
-        const s = Math.ceil((COOLDOWN - (now - user.lastFishCast)) / 1000);
-        const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-        await msg.edit(buildPanel('Fishing', `Wait **${s}s** before casting again.`, footer, mainButtons(sell)));
+        const readyAt = Math.floor((user.lastFishCast + COOLDOWN) / 1000);
+        const sell    = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
+        await msg.edit(buildPanel('Fishing', `Next cast: <t:${readyAt}:R>`, footer, mainButtons(sell)));
         return;
     }
 
