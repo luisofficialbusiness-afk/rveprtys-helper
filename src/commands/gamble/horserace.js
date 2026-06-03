@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { formatNumber } = require('../../utils/format');
-const { HORSES, refundTimeout } = require('../../utils/gambling');
+const { HORSES } = require('../../utils/gambling');
 
 async function execute(interaction, user, bet, settle) {
     const horseList = HORSES.map(h => `${h.emoji} **${h.name}** - ${h.odds}x`).join('\n');
@@ -46,7 +46,7 @@ async function execute(interaction, user, bet, settle) {
 
     collector.on('end', async (_, reason) => {
         if (reason === 'time') {
-            await refundTimeout(user, bet);
+            await settle(bet);
             await msg.edit({ embeds: [new EmbedBuilder().setTitle('🏇 Horse Race').setDescription('You took too long to pick a horse. Bet refunded.').setColor(0xffff00)], components: [] }).catch(() => {});
         }
     });

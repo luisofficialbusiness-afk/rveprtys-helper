@@ -1,6 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { formatNumber } = require('../../utils/format');
-const { refundTimeout } = require('../../utils/gambling');
 
 async function execute(interaction, user, bet, settle) {
     const msg = await interaction.reply({
@@ -30,7 +29,7 @@ async function execute(interaction, user, bet, settle) {
 
     collector.on('end', async (_, reason) => {
         if (reason === 'time') {
-            await refundTimeout(user, bet);
+            await settle(bet);
             await msg.edit({ embeds: [new EmbedBuilder().setTitle('🪙 Coinflip').setDescription('You took too long. Bet refunded.').setColor(0xffff00)], components: [] }).catch(() => {});
         }
     });
