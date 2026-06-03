@@ -15,15 +15,6 @@ const SEARCH_MAP = {
     area_51:            ['area51', 'area'],
 };
 
-const CRIME_MAP = {
-    pickpocket:   ['pickpocket', 'pick'],
-    shoplift:     ['shoplift', 'lift'],
-    carjack:      ['carjack', 'jack'],
-    mugging:      ['mugging', 'mug'],
-    fraud:        ['fraud'],
-    bank_robbery: ['bankrobbery', 'bankrob', 'robbery', 'rob'],
-};
-
 function lookup(map, raw) {
     for (const [canonical, aliases] of Object.entries(map)) {
         if (aliases.includes(raw)) return canonical;
@@ -175,19 +166,7 @@ router
         return run('search', { getString: n => n === 'location' ? loc : null });
     })
 
-    // Crime (fuzzy type matching)
-    .on('crime', null, (args, msg, run) => {
-        const raw  = args.join('').toLowerCase().replace(/[\s_-]/g, '');
-        const type = lookup(CRIME_MAP, raw);
-        if (!type) {
-            const valid = 'pickpocket, shoplift, carjack, mugging, fraud, bank robbery';
-            return msg.reply({ embeds: [new EmbedBuilder()
-                .setTitle('Unknown Crime')
-                .setDescription(args.length ? `"${args.join(' ')}" is not a valid crime type.\n\n**Valid types:** ${valid}` : `You need to provide a crime type.\n\n**Valid types:** ${valid}`)
-                .setColor(0xff3333)] });
-        }
-        return run('crime', { getString: n => n === 'type' ? type : null });
-    })
+    .on('crime', null, (args, msg, run) => run('crime', {}))
 
     // Shop
     .on('shop', null, (args, msg, run) => {
