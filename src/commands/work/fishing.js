@@ -137,7 +137,11 @@ function mainButtons(sellTotal) {
 }
 
 function statusFooter(rod, tier, user, bucket) {
-    return `${tier.label}  ·  ${rod.name} ${user.fishRodDurability ?? 0} uses left  ·  ${bucketCount(user)}/${bucket.slots} in bucket`;
+    const readyAt  = Math.floor(((user.lastFishCast ?? 0) + COOLDOWN) / 1000);
+    const castLine = Date.now() < (user.lastFishCast ?? 0) + COOLDOWN
+        ? `Next cast <t:${readyAt}:R>`
+        : 'Ready to cast';
+    return `${tier.label}  ·  ${rod.name} ${user.fishRodDurability ?? 0} uses left  ·  ${bucketCount(user)}/${bucket.slots} in bucket  ·  ${castLine}`;
 }
 
 // ─── Main command ─────────────────────────────────────────────────────────────
@@ -175,11 +179,12 @@ async function handleCast(interaction) {
     const footer  = statusFooter(rod, tier, user, bucket);
     const msg     = interaction.message;
 
-    const now     = Date.now();
-    if (now - (user.lastFishCast ?? 0) < COOLDOWN) {
-        const readyAt = Math.floor((user.lastFishCast + COOLDOWN) / 1000);
-        const sell    = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-        await msg.edit(buildPanel('Fishing', `Next cast: <t:${readyAt}:R>`, footer, mainButtons(sell)));
+    const now      = Date.now();
+    const readyAt  = (user.lastFishCast ?? 0) + COOLDOWN;
+    if (now < readyAt) {
+        const ts   = Math.floor(readyAt / 1000);
+        const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
+        await msg.edit(buildPanel('Fishing', `Next cast: <t:${ts}:R>`, footer, mainButtons(sell)));
         return;
     }
 
