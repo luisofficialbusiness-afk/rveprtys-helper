@@ -134,7 +134,7 @@ function mainButtons(sellTotal, bucketItems = 0) {
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(sellTotal === 0),
         new ButtonBuilder().setCustomId('fish_bucket')
-            .setLabel(`Bucket (${bucketItems})`)
+            .setLabel('View Bucket')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(bucketItems === 0),
     ];
@@ -389,16 +389,12 @@ async function handleSell(interaction) {
 }
 
 async function handleBucket(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferUpdate();
     const user   = await getUser(interaction.user.id, interaction.guild.id);
     const bucket = getBucket(user);
+    const msg    = interaction.message;
 
-    if (!user.fishBucket?.length) {
-        await interaction.editReply({ content: 'Your bucket is empty.', flags: MessageFlags.Ephemeral });
-        return;
-    }
-
-    const items = [...user.fishBucket]
+    const items = [...(user.fishBucket || [])]
         .sort((a, b) => (CATCH_ITEMS[b.item]?.value ?? 0) - (CATCH_ITEMS[a.item]?.value ?? 0));
 
     const lines = await Promise.all(items.map(async e => {
@@ -410,11 +406,38 @@ async function handleBucket(interaction) {
     const count = bucketCount(user);
     const sell  = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket?.sellMultiplier ?? 1);
 
-    await interaction.editReply(buildPanel(
+    const backBtn = [
+        new ButtonBuilder().setCustomId('fish_back').setLabel('Back').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('fish_sell')
+            .setLabel(sell > 0 ? `Sell All ($${formatNumber(sell)})` : 'Sell All')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(sell === 0),
+    ];
+
+    await msg.edit(buildPanel(
         'Bucket',
-        lines.join('\n'),
-        `${count}/${bucket?.slots ?? '?'} items  ·  Value: $${formatNumber(sell)}`
+        lines.length ? lines.join('\n') : 'Your bucket is empty.',
+        `${count}/${bucket?.slots ?? '?'} items  ·  Value: $${formatNumber(sell)}`,
+        backBtn
     ));
 }
 
-module.exports = { execute, handleCast, handleReel, handleCut, handleSell, handleBucket, CATCH_ITEMS, TIERS };
+async function handleBack(interaction) {
+    await interaction.deferUpdate();
+    const user   = await getUser(interaction.user.id, interaction.guild.id);
+    const rod    = getRod(user);
+    const bucket = getBucket(user);
+    if (!rod || !bucket) return;
+
+    const tier  = getTier(user.balance + user.bank);
+    const sell  = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
+
+    await interaction.message.edit(buildPanel(
+        'Fishing',
+        `Ready to cast at the **${tier.label}**.`,
+        statusFooter(rod, tier, user, bucket),
+        mainButtons(sell, bucketCount(user))
+    ));
+}
+
+module.exports = { execute, handleCast, handleReel, handleCut, handleSell, handleBucket, handleBack, CATCH_ITEMS, TIERS };
