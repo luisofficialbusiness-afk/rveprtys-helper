@@ -126,13 +126,17 @@ function buildPanel(title, body, footer, buttons = []) {
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
 
-function mainButtons(sellTotal) {
+function mainButtons(sellTotal, bucketItems = 0) {
     return [
         new ButtonBuilder().setCustomId('fish_cast').setLabel('Cast').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('fish_sell')
-            .setLabel(sellTotal > 0 ? `Sell All  $${formatNumber(sellTotal)}` : 'Sell All')
+            .setLabel(sellTotal > 0 ? `Sell All ($${formatNumber(sellTotal)})` : 'Sell All')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(sellTotal === 0),
+        new ButtonBuilder().setCustomId('fish_bucket')
+            .setLabel(`Bucket (${bucketItems})`)
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(bucketItems === 0),
     ];
 }
 
@@ -160,7 +164,7 @@ async function execute(interaction, user) {
             'Fishing',
             `Ready to cast at the **${tier.label}**.`,
             statusFooter(rod, tier, user, bucket),
-            mainButtons(sellTotal)
+            mainButtons(sellTotal, bucketCount(user))
         ),
         fetchReply: true,
     });
@@ -184,14 +188,14 @@ async function handleCast(interaction) {
     if (now < readyAt) {
         const ts   = Math.floor(readyAt / 1000);
         const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-        await msg.edit(buildPanel('Fishing', `Next cast: <t:${ts}:R>`, footer, mainButtons(sell)));
+        await msg.edit(buildPanel('Fishing', `Next cast: <t:${ts}:R>`, footer, mainButtons(sell, bucketCount(user))));
         return;
     }
 
     const cnt = bucketCount(user);
     if (cnt >= bucket.slots) {
         const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-        await msg.edit(buildPanel('Fishing', `Your **${bucket.name}** is full. Sell before casting.`, footer, mainButtons(sell)));
+        await msg.edit(buildPanel('Fishing', `Your **${bucket.name}** is full. Sell before casting.`, footer, mainButtons(sell, bucketCount(user))));
         return;
     }
 
@@ -204,7 +208,7 @@ async function handleCast(interaction) {
 
     if (rodBroke) {
         const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-        await msg.edit(buildPanel('Fishing', `Your **${rod.name}** broke. Buy a new one from \`/shop\`.`, footer, mainButtons(sell)));
+        await msg.edit(buildPanel('Fishing', `Your **${rod.name}** broke. Buy a new one from \`/shop\`.`, footer, mainButtons(sell, bucketCount(user))));
         return;
     }
 
@@ -217,7 +221,7 @@ async function handleCast(interaction) {
 
     if (nothing) {
         const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-        await msg.edit(buildPanel('Fishing', 'Nothing on the line.', footer, mainButtons(sell)));
+        await msg.edit(buildPanel('Fishing', 'Nothing on the line.', footer, mainButtons(sell, bucketCount(user))));
         return;
     }
 
@@ -258,7 +262,7 @@ async function handleReel(interaction) {
 
     if (Date.now() > expiresAt) {
         const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-        await msg.edit(buildPanel('Fishing', 'Too slow - it got away.', footer, mainButtons(sell)));
+        await msg.edit(buildPanel('Fishing', 'Too slow - it got away.', footer, mainButtons(sell, bucketCount(user))));
         return;
     }
 
@@ -279,14 +283,14 @@ async function handleReel(interaction) {
         await user.save();
         const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
         const body = lost.length ? `Bomb.\n\nLost:\n${lost.join('\n')}` : 'Bomb. Your bucket was empty.';
-        await msg.edit(buildPanel('Fishing', body, statusFooter(rod, tier, user, bucket), mainButtons(sell)));
+        await msg.edit(buildPanel('Fishing', body, statusFooter(rod, tier, user, bucket), mainButtons(sell, bucketCount(user))));
         return;
     }
 
     const rodStats = rod.stats;
     if (Math.random() < rodStats.snapChance) {
         const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-        await msg.edit(buildPanel('Fishing', 'Line snapped.', footer, mainButtons(sell)));
+        await msg.edit(buildPanel('Fishing', 'Line snapped.', footer, mainButtons(sell, bucketCount(user))));
         return;
     }
 
@@ -321,7 +325,7 @@ async function handleReel(interaction) {
     const title     = isMonster ? 'Fishing  -  Monster Catch' : catchCount > 1 ? `Fishing  -  ${catchCount}x Catch` : 'Fishing';
     const body      = lines.join('\n') + `\n\n${newCount}/${bucket.slots} in bucket` + (full ? '\nBucket full. Sell before casting again.' : '');
 
-    await msg.edit(buildPanel(title, body, statusFooter(rod, tier, user, bucket), mainButtons(sellTotal)));
+    await msg.edit(buildPanel(title, body, statusFooter(rod, tier, user, bucket), mainButtons(sellTotal, newCount)));
 }
 
 async function handleCut(interaction) {
@@ -333,7 +337,7 @@ async function handleCut(interaction) {
 
     const tier = getTier(user.balance + user.bank);
     const sell = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
-    await interaction.message.edit(buildPanel('Fishing', 'Line cut.', statusFooter(rod, tier, user, bucket), mainButtons(sell)));
+    await interaction.message.edit(buildPanel('Fishing', 'Line cut.', statusFooter(rod, tier, user, bucket), mainButtons(sell, bucketCount(user))));
 }
 
 async function handleSell(interaction) {
@@ -384,4 +388,33 @@ async function handleSell(interaction) {
     ));
 }
 
-module.exports = { execute, handleCast, handleReel, handleCut, handleSell, CATCH_ITEMS, TIERS };
+async function handleBucket(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+    const user   = await getUser(interaction.user.id, interaction.guild.id);
+    const bucket = getBucket(user);
+
+    if (!user.fishBucket?.length) {
+        await interaction.editReply({ content: 'Your bucket is empty.', flags: MessageFlags.Ephemeral });
+        return;
+    }
+
+    const items = [...user.fishBucket]
+        .sort((a, b) => (CATCH_ITEMS[b.item]?.value ?? 0) - (CATCH_ITEMS[a.item]?.value ?? 0));
+
+    const lines = await Promise.all(items.map(async e => {
+        const c     = CATCH_ITEMS[e.item];
+        const price = await getNpcPrice(interaction.guild.id, e.item, c?.value ?? 0);
+        return `${c?.emoji ?? '📦'} **${c?.name ?? e.item}** ×${e.quantity}  ·  $${formatNumber(price * e.quantity)}`;
+    }));
+
+    const count = bucketCount(user);
+    const sell  = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket?.sellMultiplier ?? 1);
+
+    await interaction.editReply(buildPanel(
+        'Bucket',
+        lines.join('\n'),
+        `${count}/${bucket?.slots ?? '?'} items  ·  Value: $${formatNumber(sell)}`
+    ));
+}
+
+module.exports = { execute, handleCast, handleReel, handleCut, handleSell, handleBucket, CATCH_ITEMS, TIERS };
