@@ -11,25 +11,50 @@ const FishMarket = require('../../models/fishmarket');
 const COOLDOWN = 10 * 1000;
 
 const CATCH_ITEMS = {
-    junk_boot:     { name: 'Old Boot',     emoji: '👢', value: 8,      type: 'junk'    },
-    junk_can:      { name: 'Tin Can',      emoji: '🥫', value: 12,     type: 'junk'    },
-    junk_seaweed:  { name: 'Seaweed',      emoji: '🌿', value: 5,      type: 'junk'    },
-    fish_minnow:   { name: 'Minnow',       emoji: '🐟', value: 60,     type: 'fish'    },
-    fish_perch:    { name: 'Perch',        emoji: '🐠', value: 180,    type: 'fish'    },
-    fish_bass:     { name: 'Bass',         emoji: '🐡', value: 500,    type: 'fish'    },
-    fish_trout:    { name: 'Trout',        emoji: '🐟', value: 1200,   type: 'fish'    },
-    fish_salmon:   { name: 'Salmon',       emoji: '🐠', value: 3000,   type: 'fish'    },
-    fish_tuna:     { name: 'Tuna',         emoji: '🐡', value: 8000,   type: 'fish'    },
-    fish_swordfish:{ name: 'Swordfish',    emoji: '🐬', value: 22000,  type: 'fish'    },
-    fish_shark:    { name: 'Shark',        emoji: '🦈', value: 65000,  type: 'fish'    },
-    fish_monster:  { name: 'Monster Fish', emoji: '🐉', value: 250000, type: 'monster' },
+    // Junk
+    junk_seaweed:     { name: 'Seaweed',          emoji: '🌿', value: 2,       type: 'junk'    },
+    junk_boot:        { name: 'Old Boot',          emoji: '👢', value: 3,       type: 'junk'    },
+    junk_can:         { name: 'Tin Can',           emoji: '🥫', value: 5,       type: 'junk'    },
+    junk_anchor:      { name: 'Rusty Anchor',      emoji: '⚓', value: 12,      type: 'junk'    },
+    junk_bottle:      { name: 'Message in a Bottle',emoji: '🍾', value: 40,     type: 'junk'    },
+    // Fish
+    fish_minnow:      { name: 'Minnow',            emoji: '🐟', value: 15,      type: 'fish'    },
+    fish_perch:       { name: 'Perch',             emoji: '🐠', value: 50,      type: 'fish'    },
+    fish_catfish:     { name: 'Catfish',           emoji: '🐡', value: 200,     type: 'fish'    },
+    fish_bass:        { name: 'Bass',              emoji: '🐟', value: 350,     type: 'fish'    },
+    fish_trout:       { name: 'Trout',             emoji: '🐠', value: 600,     type: 'fish'    },
+    fish_cod:         { name: 'Cod',               emoji: '🐡', value: 900,     type: 'fish'    },
+    fish_salmon:      { name: 'Salmon',            emoji: '🐟', value: 1400,    type: 'fish'    },
+    fish_tuna:        { name: 'Tuna',              emoji: '🐠', value: 3000,    type: 'fish'    },
+    fish_swordfish:   { name: 'Swordfish',         emoji: '🐬', value: 6000,    type: 'fish'    },
+    fish_marlin:      { name: 'Marlin',            emoji: '🐬', value: 10000,   type: 'fish'    },
+    fish_shark:       { name: 'Shark',             emoji: '🦈', value: 18000,   type: 'fish'    },
+    fish_oarfish:     { name: 'Oarfish',           emoji: '🦑', value: 35000,   type: 'fish'    },
+    fish_monster:     { name: 'Monster Fish',      emoji: '🐉', value: 60000,   type: 'monster' },
+    fish_giant_squid: { name: 'Giant Squid',       emoji: '🐙', value: 120000,  type: 'monster' },
 };
 
 const TABLES = {
-    pond:    [['junk_boot',8],['junk_can',10],['junk_seaweed',7],['fish_minnow',40],['fish_perch',22],['fish_bass',10],['fish_trout',2],['fish_monster',0.3]],
-    river:   [['junk_can',5],['junk_seaweed',4],['fish_minnow',15],['fish_perch',25],['fish_bass',25],['fish_trout',18],['fish_salmon',6],['fish_monster',0.5]],
-    ocean:   [['junk_boot',2],['fish_bass',8],['fish_trout',15],['fish_salmon',22],['fish_tuna',28],['fish_swordfish',18],['fish_shark',5],['fish_monster',1]],
-    deepsea: [['fish_salmon',8],['fish_tuna',18],['fish_swordfish',25],['fish_shark',28],['fish_monster',3]],
+    pond: [
+        ['junk_seaweed',6],['junk_boot',7],['junk_can',8],['junk_anchor',4],['junk_bottle',1],
+        ['fish_minnow',35],['fish_perch',20],['fish_catfish',12],['fish_bass',5],
+        ['fish_trout',1],['fish_monster',0.3],
+    ],
+    river: [
+        ['junk_can',4],['junk_bottle',2],
+        ['fish_minnow',12],['fish_perch',16],['fish_catfish',18],['fish_bass',18],
+        ['fish_trout',14],['fish_cod',8],['fish_salmon',5],['fish_monster',0.5],
+    ],
+    ocean: [
+        ['junk_bottle',1],
+        ['fish_catfish',3],['fish_bass',6],['fish_trout',10],['fish_cod',15],
+        ['fish_salmon',18],['fish_tuna',20],['fish_swordfish',14],['fish_marlin',8],['fish_shark',4],
+        ['fish_monster',0.8],
+    ],
+    deepsea: [
+        ['fish_tuna',10],['fish_swordfish',16],['fish_marlin',18],
+        ['fish_shark',24],['fish_oarfish',8],['fish_monster',3],['fish_giant_squid',0.5],
+    ],
 };
 
 const TIERS = [
@@ -44,6 +69,7 @@ const ROD_STATS = {
     fishing_rod_basic:    { skip: 1, snapChance: 0.04,  multiChance: 0,    multiCount: 1 },
     fishing_rod_upgraded: { skip: 2, snapChance: 0.02,  multiChance: 0.15, multiCount: 2 },
     fishing_rod_super:    { skip: 3, snapChance: 0.005, multiChance: 0.25, multiCount: 3 },
+    fishing_rod_legendary:{ skip: 3, snapChance: 0.001, multiChance: 0.40, multiCount: 4 },
 };
 
 function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }

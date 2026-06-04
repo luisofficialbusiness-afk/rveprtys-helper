@@ -5,54 +5,64 @@ const ITEMS = {
         description: 'Prevents the death penalty once. Grants a 5-minute +5% gambling boost when consumed.',
     },
 
-    // Fishing - Rods (durability tracked in user.fishRodDurability)
+    // Fishing - Rods
     fishing_rod_wooden: {
-        emoji: '🎣', name: 'Wooden Rod', price: 150, category: 'fishing',
+        emoji: '🎣', name: 'Wooden Rod', price: 500, category: 'fishing',
         durability: 100,
-        description: 'A flimsy rod. 100 casts before it breaks. Higher line snap chance.',
+        description: '100 casts. High snap chance. Starter rod.',
     },
     fishing_rod_basic: {
-        emoji: '🎣', name: 'Basic Rod', price: 800, category: 'fishing',
+        emoji: '🎣', name: 'Basic Rod', price: 3000, category: 'fishing',
         durability: 200, requires: 'fishing_rod_wooden',
-        description: '200 casts. Lower snap chance. Slightly better catch table.',
+        description: '200 casts. Lower snap chance. Removes worst fish from the table.',
     },
     fishing_rod_upgraded: {
-        emoji: '🎣', name: 'Upgraded Rod', price: 4000, category: 'fishing',
+        emoji: '🎣', name: 'Upgraded Rod', price: 15000, category: 'fishing',
         durability: 350, requires: 'fishing_rod_basic',
-        description: '350 casts. Removes worst fish from the table. Chance to catch 2 fish.',
+        description: '350 casts. Removes bottom 2 fish tiers. Chance to catch 2 fish.',
     },
     fishing_rod_super: {
-        emoji: '🎣', name: 'Super Rod', price: 12000, category: 'fishing',
+        emoji: '🎣', name: 'Super Rod', price: 60000, category: 'fishing',
         durability: 500, requires: 'fishing_rod_upgraded',
-        description: '500 casts. Top-tier fish only. Higher multi-catch chance. Near-zero snap.',
+        description: '500 casts. Top-tier fish only. 25% chance to catch 3 fish.',
+    },
+    fishing_rod_legendary: {
+        emoji: '🎣', name: 'Legendary Rod', price: 200000, category: 'fishing',
+        durability: 750, requires: 'fishing_rod_super',
+        description: '750 casts. 40% chance to catch 4 fish per cast. Near-zero snap.',
     },
 
     // Fishing - Bait
     fishing_bait: {
-        emoji: '🪱', name: 'Fishing Bait', price: 150, category: 'fishing', consumable: true,
+        emoji: '🪱', name: 'Fishing Bait', price: 500, category: 'fishing', consumable: true,
         description: 'Consumable. Shifts the catch table toward rarer fish this cast.',
     },
 
-    // Fishing - Buckets (capacity and sell multiplier)
+    // Fishing - Buckets
     bucket_wooden: {
-        emoji: '🪣', name: 'Wooden Bucket', price: 100, category: 'fishing',
+        emoji: '🪣', name: 'Wooden Bucket', price: 500, category: 'fishing',
         slots: 10, sellMultiplier: 1.0,
         description: 'Holds 10 items. Required to go fishing.',
     },
     bucket_iron: {
-        emoji: '🪣', name: 'Iron Bucket', price: 600, category: 'fishing',
+        emoji: '🪣', name: 'Iron Bucket', price: 2500, category: 'fishing',
         slots: 25, sellMultiplier: 1.0, requires: 'bucket_wooden',
         description: 'Holds 25 items.',
     },
     bucket_gold: {
-        emoji: '🪣', name: 'Gold Bucket', price: 2500, category: 'fishing',
-        slots: 50, sellMultiplier: 1.15, requires: 'bucket_iron',
-        description: 'Holds 50 items. Sell contents for +15% value.',
+        emoji: '🪣', name: 'Gold Bucket', price: 12000, category: 'fishing',
+        slots: 50, sellMultiplier: 1.10, requires: 'bucket_iron',
+        description: 'Holds 50 items. Sell contents for +10% value.',
     },
     bucket_diamond: {
-        emoji: '🪣', name: 'Diamond Bucket', price: 8000, category: 'fishing',
-        slots: 100, sellMultiplier: 1.30, requires: 'bucket_gold',
-        description: 'Holds 100 items. Sell contents for +30% value.',
+        emoji: '🪣', name: 'Diamond Bucket', price: 50000, category: 'fishing',
+        slots: 100, sellMultiplier: 1.20, requires: 'bucket_gold',
+        description: 'Holds 100 items. Sell contents for +20% value.',
+    },
+    bucket_crystal: {
+        emoji: '🪣', name: 'Crystal Bucket', price: 175000, category: 'fishing',
+        slots: 200, sellMultiplier: 1.40, requires: 'bucket_diamond',
+        description: 'Holds 200 items. Sell contents for +40% value.',
     },
 
     // Mining
@@ -103,9 +113,8 @@ const ITEMS = {
     },
 };
 
-// Rod IDs in tier order (worst → best)
-const ROD_TIERS = ['fishing_rod_wooden', 'fishing_rod_basic', 'fishing_rod_upgraded', 'fishing_rod_super'];
-const BUCKET_TIERS = ['bucket_wooden', 'bucket_iron', 'bucket_gold', 'bucket_diamond'];
+const ROD_TIERS    = ['fishing_rod_wooden', 'fishing_rod_basic', 'fishing_rod_upgraded', 'fishing_rod_super', 'fishing_rod_legendary'];
+const BUCKET_TIERS = ['bucket_wooden', 'bucket_iron', 'bucket_gold', 'bucket_diamond', 'bucket_crystal'];
 
 const CATEGORY_LABELS = {
     general:   '🏪 General',
