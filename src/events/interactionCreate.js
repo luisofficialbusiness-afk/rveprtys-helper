@@ -3,7 +3,7 @@ const fetch = require('node-fetch');
 const Slave = require('../models/slave');
 const { getUser } = require('../utils/economy');
 const { formatNumber } = require('../utils/format');
-const { handleCast, handleReel, handleCut, handleSell, handleBucket, handleBack } = require('../commands/work/fishing');
+const { handleCast, handleReel, handleCut, handleSell, handleBucket, handleBack } = require('../commands/fish/handlers');
 
 module.exports = {
     name: 'interactionCreate',

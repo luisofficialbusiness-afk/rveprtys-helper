@@ -1,10 +1,8 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { getUser } = require('../../utils/economy');
-const { hasAnyItem } = require('../../utils/inventory');
-const { execute: runFishing } = require('../work/fishing');
-
-const RODS    = ['fishing_rod_wooden', 'fishing_rod_basic', 'fishing_rod_upgraded', 'fishing_rod_super'];
-const BUCKETS = ['bucket_wooden', 'bucket_iron', 'bucket_gold', 'bucket_diamond'];
+const { getRod, getBucket, bucketCount, calcSellTotal, getTier, buildPanel, mainButtons, statusFooter } = require('./helpers');
+const { handleCast, handleReel, handleCut, handleSell, handleBucket, handleBack } = require('./handlers');
+const { CATCH_ITEMS, TIERS } = require('./data');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -12,11 +10,28 @@ module.exports = {
         .setDescription('Go fishing - requires a rod and bucket from the shop'),
 
     async execute(interaction) {
-        const user = await getUser(interaction.user.id, interaction.guild.id);
-        if (!hasAnyItem(user, RODS))
-            return interaction.reply({ content: '❌ You need a fishing rod to fish. Start with a **Wooden Rod ($150)** from `/shop browse`.', ephemeral: true });
-        if (!hasAnyItem(user, BUCKETS))
-            return interaction.reply({ content: '❌ You need a bucket to store your catch. Start with a **Wooden Bucket ($100)** from `/shop browse`.', ephemeral: true });
-        return runFishing(interaction, user);
-    }
+        const user   = await getUser(interaction.user.id, interaction.guild.id);
+        const rod    = getRod(user);
+        const bucket = getBucket(user);
+
+        if (!rod)    return interaction.reply({ content: 'You need a fishing rod. Buy one from `/shop`.', ephemeral: true });
+        if (!bucket) return interaction.reply({ content: 'You need a bucket. Start with a Wooden Bucket ($500) from `/shop`.', ephemeral: true });
+
+        const tier      = getTier(user.balance + user.bank);
+        const sellTotal = await calcSellTotal(interaction.guild.id, user.fishBucket, bucket.sellMultiplier ?? 1);
+
+        return interaction.reply({
+            ...buildPanel(
+                'Fishing',
+                `Ready to cast at the **${tier.label}**.`,
+                statusFooter(rod, tier, user, bucket),
+                mainButtons(sellTotal, bucketCount(user))
+            ),
+            fetchReply: true,
+        });
+    },
+
+    // Re-exported for interactionCreate.js
+    handleCast, handleReel, handleCut, handleSell, handleBucket, handleBack,
+    CATCH_ITEMS, TIERS,
 };
