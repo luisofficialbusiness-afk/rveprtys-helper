@@ -1,22 +1,22 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { getUser } = require('../../utils/economy');
-const { hasAllItems, hasItem } = require('../../utils/inventory');
+const { hasItem } = require('../../utils/inventory');
 const { formatNumber } = require('../../utils/format');
 const cooldowns = require('../../utils/cooldowns');
 const { COOLDOWN, MAX_SEGMENTS, TIERS, CATEGORIES } = require('./config');
 const { rand, getTier, buildEvents, rollEvent, buildPanel, streamButtons } = require('./utils');
 
-const REQUIRED = ['keyboard_mouse', 'camera'];
+const REQUIRED = ['keyboard_mouse'];
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stream')
-        .setDescription('Start a livestream - requires Keyboard & Mouse and Camera from the shop'),
+        .setDescription('Start a livestream - requires Keyboard & Mouse from the shop'),
 
     async execute(interaction) {
         const user = await getUser(interaction.user.id, interaction.guild.id);
-        if (!hasAllItems(user, REQUIRED))
-            return interaction.reply({ content: 'You need a **Keyboard & Mouse** and **Camera** to stream. Buy them from `/shop`.', ephemeral: true });
+        if (!hasItem(user, 'keyboard_mouse'))
+            return interaction.reply({ content: 'You need a **Keyboard & Mouse** to stream. Buy one from `/shop`.', ephemeral: true });
 
         const cdKey = `stream_${interaction.user.id}`;
         const now   = Date.now();
@@ -36,6 +36,7 @@ module.exports = {
         const available   = tier.categories;
         const catId       = available[Math.floor(Math.random() * available.length)];
         const base        = CATEGORIES[catId];
+        const hasCamera   = hasItem(user, 'camera');
         const hasLight    = hasItem(user, 'ring_light');
         const events      = buildEvents(user);
 
@@ -43,12 +44,14 @@ module.exports = {
         const growthMax = base.growthMax + (hasLight ? 0.15 : 0);
 
         const equipment = [
+            hasCamera                         ? 'Camera'           : null,
             hasLight                          ? 'Ring Light'       : null,
             hasItem(user, 'microphone')       ? 'Microphone'       : null,
             hasItem(user, 'dedicated_server') ? 'Dedicated Server' : null,
         ].filter(Boolean);
 
-        let viewers   = rand(base.baseMin, base.baseMax);
+        const baseViewers = rand(base.baseMin, base.baseMax);
+        let viewers       = hasCamera ? Math.floor(baseViewers * 2.0) : baseViewers;
         let segment   = 0;
         let lastEvent = null;
         let ended     = false;

@@ -103,11 +103,11 @@ const ITEMS = {
     // Streaming
     keyboard_mouse: {
         emoji: '⌨️', name: 'Keyboard & Mouse', price: 1000, category: 'streaming',
-        description: 'The basics. Enables streaming. Expect 0-2 viewers.',
+        description: 'The basics. Enables streaming on its own. Expect low viewer counts without a Camera.',
     },
     camera: {
         emoji: '📷', name: 'Camera', price: 4000, category: 'streaming',
-        description: 'Required to stream. Unlocks the stream command alongside Keyboard & Mouse.',
+        description: 'Doubles your starting viewer count. Face cam significantly boosts retention and first impressions.',
         requires: 'keyboard_mouse',
     },
     ring_light: {
