@@ -37,7 +37,7 @@ async function execute(interaction) {
     user.balance = parseFloat((user.balance + totalEarned).toFixed(2));
     await user.save();
 
-    const sellImpact   = Math.min(shares / Math.max(stock.totalShares, 10000), 0.1) * 0.5;
+    const sellImpact   = Math.min(shares / Math.max(stock.totalShares, 500000), 0.1) * 0.1;
     stock.price        = Math.max(parseFloat((stock.price * (1 - sellImpact)).toFixed(2)), 0.01);
     stock.totalShares  = Math.max(0, stock.totalShares - shares);
     await stock.save();

@@ -43,7 +43,7 @@ async function execute(interaction) {
     }
     await portfolio.save();
 
-    const buyImpact  = 1 + Math.min(shares / Math.max(stock.totalShares + shares, 10000), 0.1) * 0.5;
+    const buyImpact  = 1 + Math.min(shares / Math.max(stock.totalShares + shares, 500000), 0.1) * 0.1;
     stock.price      = Math.min(parseFloat((stock.price * buyImpact).toFixed(2)), 999999);
     stock.totalShares += shares;
     await stock.save();
