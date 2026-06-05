@@ -86,4 +86,4 @@ function buildPanel(title, body, footer, gridRows) {
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
 
-module.exports = { rand, getTier, getPickaxe, buildTiles, buildGrid, buildPanel };
+module.exports = { rand, getTier, getPickaxe, buildTiles, buildGrid, buildPanel, PICKAXE_STATS };

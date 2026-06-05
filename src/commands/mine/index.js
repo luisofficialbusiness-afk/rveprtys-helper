@@ -4,7 +4,7 @@ const { hasAnyItem, hasItem, consumeItem } = require('../../utils/inventory'); /
 const cooldowns = require('../../utils/cooldowns');
 const { formatNumber } = require('../../utils/format');
 const { COOLDOWN, TIERS, ORES } = require('./ores');
-const { rand, getTier, getPickaxe, buildTiles, buildGrid, buildPanel } = require('./utils');
+const { rand, getTier, getPickaxe, buildTiles, buildGrid, buildPanel, PICKAXE_STATS } = require('./utils');
 const { ITEMS } = require('../shop/items');
 
 const PICKAXES = ['pickaxe_wooden', 'pickaxe_basic', 'pickaxe_iron', 'pickaxe_diamond', 'pickaxe_netherite'];
@@ -12,7 +12,17 @@ const PICKAXES = ['pickaxe_wooden', 'pickaxe_basic', 'pickaxe_iron', 'pickaxe_di
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('mine')
-        .setDescription('Go mining - requires a pickaxe from the shop'),
+        .setDescription('Go mining - requires a pickaxe from the shop')
+        .addStringOption(o =>
+            o.setName('pickaxe').setDescription('Which pickaxe to use (defaults to highest tier)').setRequired(false)
+                .addChoices(
+                    { name: 'Wooden Pickaxe',    value: 'pickaxe_wooden'    },
+                    { name: 'Basic Pickaxe',     value: 'pickaxe_basic'     },
+                    { name: 'Iron Pickaxe',      value: 'pickaxe_iron'      },
+                    { name: 'Diamond Pickaxe',   value: 'pickaxe_diamond'   },
+                    { name: 'Netherite Pickaxe', value: 'pickaxe_netherite' },
+                )
+        ),
 
     async execute(interaction) {
         const user = await getUser(interaction.user.id, interaction.guild.id);
@@ -29,7 +39,15 @@ module.exports = {
                 return interaction.reply({ content: `Your tools need to recover. Ready <t:${readyAt}:R>.`, ephemeral: true });
             }
         }
-        const pickaxe     = getPickaxe(user);
+        const chosenId = interaction.options.getString('pickaxe');
+        let pickaxe;
+        if (chosenId) {
+            if (!hasItem(user, chosenId))
+                return interaction.reply({ content: `❌ You don't own a **${ITEMS[chosenId]?.name ?? chosenId}**. Buy one from \`/shop\`.`, ephemeral: true });
+            pickaxe = { id: chosenId, ...ITEMS[chosenId], stats: PICKAXE_STATS[chosenId] };
+        } else {
+            pickaxe = getPickaxe(user);
+        }
         const tier        = getTier(pickaxe.id);
         const nextTier    = TIERS[TIERS.indexOf(tier) + 1];
         const nextPickaxe = nextTier ? ITEMS[nextTier.pickaxe] : null;
