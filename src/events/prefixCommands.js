@@ -117,8 +117,7 @@ router
         if (s === 'list')   return run('slave', { getSubcommand: () => 'list' });
         return run('slave', { getSubcommand: () => 'status' });
     })
-    .on('buy', 'slave', (args, msg, run) => {
-        if (mention(msg)) return run('slave', { getSubcommand: () => 'buy', getUser: n => n === 'user' ? mention(msg) : null });
+    .on('buy', null, (args, msg, run) => {
         const lastIsNum = args.length > 1 && !isNaN(parseInt(args[args.length - 1]));
         const qty       = lastIsNum ? parseInt(args.pop()) : null;
         return run('shop', {
