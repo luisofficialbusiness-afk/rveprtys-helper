@@ -26,7 +26,7 @@ async function execute(interaction) {
     if (shares > holding.shares)
         return interaction.reply({ content: `❌ You only have **${formatNumber(holding.shares)}** shares of \`${ticker}\`.`, ephemeral: true });
 
-    const sellImpact   = Math.min(shares / Math.max(stock.totalShares, 500000), 0.1) * 0.2;
+    const sellImpact   = Math.min(shares / Math.max(stock.totalShares, 5000000), 0.1) * 0.2;
     const sellPrice    = Math.max(parseFloat((stock.price * (1 - sellImpact)).toFixed(2)), 0.01);
     const totalEarned  = parseFloat((sellPrice * shares).toFixed(2));
     const profit       = parseFloat((totalEarned - holding.avgBuyPrice * shares).toFixed(2));
