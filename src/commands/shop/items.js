@@ -14,22 +14,22 @@ const ITEMS = {
     fishing_rod_basic: {
         emoji: '🎣', name: 'Basic Rod', price: 3000, category: 'fishing',
         durability: 200, requires: 'fishing_rod_wooden',
-        description: '200 casts. Lower snap chance. Removes worst fish from the table.',
+        description: '200 casts. Lower snap chance. Removes the 2 lowest fish tiers.',
     },
     fishing_rod_upgraded: {
         emoji: '🎣', name: 'Upgraded Rod', price: 15000, category: 'fishing',
         durability: 350, requires: 'fishing_rod_basic',
-        description: '350 casts. Removes bottom 2 fish tiers. Chance to catch 2 fish.',
+        description: '350 casts. Removes bottom 4 fish tiers. Chance to catch 2 fish.',
     },
     fishing_rod_super: {
         emoji: '🎣', name: 'Super Rod', price: 60000, category: 'fishing',
         durability: 500, requires: 'fishing_rod_upgraded',
-        description: '500 casts. Top-tier fish only. 25% chance to catch 3 fish.',
+        description: '500 casts. Removes bottom 6 fish tiers - sharks and above only. 25% chance to catch 3 fish.',
     },
     fishing_rod_legendary: {
         emoji: '🎣', name: 'Legendary Rod', price: 200000, category: 'fishing',
         durability: 750, requires: 'fishing_rod_super',
-        description: '750 casts. 40% chance to catch 4 fish per cast. Near-zero snap.',
+        description: '750 casts. Removes bottom 7 fish tiers - hammerhead and above only. 40% chance to catch 4 fish. Near-zero snap.',
     },
 
     // Fishing - Bait

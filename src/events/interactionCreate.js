@@ -16,12 +16,12 @@ module.exports = {
         if (interaction.isButton()) {
             const guildId = interaction.guild.id;
 
-            if (interaction.customId === 'fish_cast')                    return handleCast(interaction);
+            if (interaction.customId.startsWith('fish_cast:'))            return handleCast(interaction);
             if (interaction.customId.startsWith('fish_reel:'))          return handleReel(interaction);
             if (interaction.customId.startsWith('fish_cut:'))           return handleCut(interaction);
-            if (interaction.customId === 'fish_sell')                   return handleSell(interaction);
-            if (interaction.customId === 'fish_bucket')                 return handleBucket(interaction);
-            if (interaction.customId === 'fish_back')                   return handleBack(interaction);
+            if (interaction.customId.startsWith('fish_sell:'))          return handleSell(interaction);
+            if (interaction.customId.startsWith('fish_bucket:'))        return handleBucket(interaction);
+            if (interaction.customId.startsWith('fish_back:'))          return handleBack(interaction);
 
             if (interaction.customId.startsWith('slave_free_')) {
                 const targetId = interaction.customId.split('_')[2];

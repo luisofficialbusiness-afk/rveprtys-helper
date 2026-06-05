@@ -133,14 +133,14 @@ function buildPanel(title, body, footer, buttons = []) {
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
 
-function mainButtons(sellTotal, bucketItems = 0) {
+function mainButtons(sellTotal, bucketItems = 0, loc = 'pond') {
     return [
-        new ButtonBuilder().setCustomId('fish_cast').setLabel('Cast').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('fish_sell')
+        new ButtonBuilder().setCustomId(`fish_cast:${loc}`).setLabel('Cast').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`fish_sell:${loc}`)
             .setLabel(sellTotal > 0 ? `Sell All ($${formatNumber(sellTotal)})` : 'Sell All')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(sellTotal === 0),
-        new ButtonBuilder().setCustomId('fish_bucket')
+        new ButtonBuilder().setCustomId(`fish_bucket:${loc}`)
             .setLabel('View Bucket')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(bucketItems === 0),
