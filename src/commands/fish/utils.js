@@ -48,6 +48,10 @@ function displayWeight(weight) {
     return `${formatNumber(Number(weight ?? 1))} lbs`;
 }
 
+function clamp(n, min, max) {
+    return Math.min(max, Math.max(min, n));
+}
+
 function normalizeBucketEntries(fishBucket) {
     const entries = [];
     for (const e of (fishBucket || [])) {
@@ -100,7 +104,8 @@ async function getCatchValue(guildId, entry) {
     const basePrice = await getNpcPrice(guildId, entry.item, item?.value ?? 0);
     const avgWeight = WEIGHT_STATS[entry.item]?.avg ?? entry.weight ?? 1;
     const weight = Number(entry.weight ?? avgWeight);
-    return Math.max(1, Math.floor(basePrice * (weight / avgWeight)));
+    const weightMultiplier = clamp(weight / avgWeight, 0.75, 1.5);
+    return Math.max(1, Math.floor(basePrice * weightMultiplier));
 }
 
 function pickItem(loc, skip, useBait) {
