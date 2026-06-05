@@ -47,9 +47,8 @@ router
     .on(['withdraw', 'with'], 'withdraw', (args, msg, run) => run('bank', { getSubcommand: () => 'withdraw', getString: n => n === 'amount' ? args[0] : null }))
 
     // Work / careers
-    .on(['work', 'fish', 'mine', 'stream'], 'work', (args, msg, run) => {
+    .on('work', 'work', (args, msg, run) => {
         const s = args[0]?.toLowerCase();
-        if (s === 'fish' || s === 'mine' || s === 'stream') return run('work', { getSubcommand: () => 'work' });
         if (s === 'jobs')  return run('work', { getSubcommand: () => 'jobs' });
         if (s === 'apply') return run('work', { getSubcommand: () => 'apply', getString: n => n === 'job' ? args[1]?.toLowerCase() : null });
         return run('work', { getSubcommand: () => 'work' });
