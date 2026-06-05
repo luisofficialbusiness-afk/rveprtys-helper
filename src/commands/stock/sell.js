@@ -26,8 +26,10 @@ async function execute(interaction) {
     if (shares > holding.shares)
         return interaction.reply({ content: `❌ You only have **${formatNumber(holding.shares)}** shares of \`${ticker}\`.`, ephemeral: true });
 
-    const totalEarned = parseFloat((stock.price * shares).toFixed(2));
-    const profit      = parseFloat((totalEarned - holding.avgBuyPrice * shares).toFixed(2));
+    const sellImpact   = Math.min(shares / Math.max(stock.totalShares, 500000), 0.1) * 0.2;
+    const sellPrice    = Math.max(parseFloat((stock.price * (1 - sellImpact)).toFixed(2)), 0.01);
+    const totalEarned  = parseFloat((sellPrice * shares).toFixed(2));
+    const profit       = parseFloat((totalEarned - holding.avgBuyPrice * shares).toFixed(2));
 
     holding.shares -= shares;
     if (holding.shares === 0) portfolio.holdings = portfolio.holdings.filter(h => h.ticker !== ticker);
@@ -37,8 +39,7 @@ async function execute(interaction) {
     user.balance = parseFloat((user.balance + totalEarned).toFixed(2));
     await user.save();
 
-    const sellImpact   = Math.min(shares / Math.max(stock.totalShares, 500000), 0.1) * 0.1;
-    stock.price        = Math.max(parseFloat((stock.price * (1 - sellImpact)).toFixed(2)), 0.01);
+    stock.price        = sellPrice;
     stock.totalShares  = Math.max(0, stock.totalShares - shares);
     await stock.save();
 
@@ -49,7 +50,7 @@ async function execute(interaction) {
             .addFields(
                 { name: 'Stock',            value: `${stock.name} (\`${ticker}\`)`,                        inline: true },
                 { name: 'Shares Sold',      value: formatNumber(shares),                                   inline: true },
-                { name: 'Price Per Share',  value: `$${formatNumber(stock.price)}`,                        inline: true },
+                { name: 'Price Per Share',  value: `$${formatNumber(sellPrice)}`,                        inline: true },
                 { name: 'Total Earned',     value: `$${formatNumber(totalEarned)}`,                        inline: true },
                 { name: 'Profit/Loss',      value: `${profit >= 0 ? '+' : ''}$${formatNumber(profit)}`,   inline: true },
                 { name: 'New Cash Balance', value: `$${formatNumber(user.balance)}`,                       inline: true },
