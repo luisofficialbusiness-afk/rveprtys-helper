@@ -9,10 +9,10 @@ const { TIERS, ORES } = require('./ores');
 
 const PICKAXE_STATS = {
     pickaxe_wooden:   { multiplier: 1.00 },
-    pickaxe_basic:    { multiplier: 1.30 },
-    pickaxe_iron:     { multiplier: 1.70 },
-    pickaxe_diamond:  { multiplier: 2.25 },
-    pickaxe_netherite:{ multiplier: 3.00 },
+    pickaxe_basic:    { multiplier: 1.45 },
+    pickaxe_iron:     { multiplier: 1.90 },
+    pickaxe_diamond:  { multiplier: 2.75 },
+    pickaxe_netherite:{ multiplier: 4.00 },
 };
 
 function getPickaxe(user) {
