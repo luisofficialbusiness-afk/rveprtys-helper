@@ -164,13 +164,11 @@ function buildEquipmentBody(user) {
         : `*You don't own any equipment yet.\nBrowse the categories above to get started.*`;
 }
 
-function buildActionRow(pageId, user, mode = 'buy') {
+function buildActionRows(pageId, user, mode = 'buy') {
     const page = PAGES[pageId];
-    if (!page?.keys) return null;
+    if (!page?.keys) return [];
 
-    const buyButtons  = [];
-    const sellButtons = [];
-    const chainNextAdded = { rod: false, bucket: false, pickaxe: false };
+    const buttons = [];
 
     for (const key of page.keys) {
         const item = ITEMS[key];
@@ -178,44 +176,31 @@ function buildActionRow(pageId, user, mode = 'buy') {
         const qty    = user.inventory?.find(i => i.item === key)?.quantity ?? 0;
         const locked = !!(item.requires && !hasItem(user, item.requires));
 
-        if (item.consumable) {
-            buyButtons.push(
-                new ButtonBuilder()
-                    .setCustomId(`shop_buy:${key}:${pageId}`)
-                    .setLabel(`Buy ${item.name}`)
-                    .setStyle(ButtonStyle.Success)
-            );
-            if (qty > 0) {
-                sellButtons.push(
-                    new ButtonBuilder()
-                        .setCustomId(`shop_sell:${key}:${pageId}`)
-                        .setLabel(`Sell ${item.name}`)
-                        .setStyle(ButtonStyle.Danger)
-                );
-            }
-        } else if (qty === 0 && !locked) {
-            const chainKey = ROD_TIERS.includes(key) ? 'rod' : BUCKET_TIERS.includes(key) ? 'bucket' : PICKAXE_TIERS.includes(key) ? 'pickaxe' : null;
-            if (!chainKey || !chainNextAdded[chainKey]) {
-                buyButtons.push(
-                    new ButtonBuilder()
-                        .setCustomId(`shop_buy:${key}:${pageId}`)
-                        .setLabel(`Buy ${item.name}`)
-                        .setStyle(ButtonStyle.Primary)
-                );
-                if (chainKey) chainNextAdded[chainKey] = true;
-            }
-        } else if (qty > 0) {
-            sellButtons.push(
+        if (mode === 'sell') {
+            buttons.push(
                 new ButtonBuilder()
                     .setCustomId(`shop_sell:${key}:${pageId}`)
                     .setLabel(`Sell ${item.name}`)
                     .setStyle(ButtonStyle.Danger)
+                    .setDisabled(qty <= 0)
             );
+            continue;
         }
+
+        buttons.push(
+            new ButtonBuilder()
+                .setCustomId(`shop_buy:${key}:${pageId}`)
+                .setLabel(`Buy ${item.name}`)
+                .setStyle(item.consumable ? ButtonStyle.Success : ButtonStyle.Primary)
+                .setDisabled(locked || (!item.consumable && qty > 0))
+        );
     }
 
-    const all = (mode === 'sell' ? sellButtons : buyButtons).slice(0, 5);
-    return all.length > 0 ? new ActionRowBuilder().addComponents(...all) : null;
+    const rows = [];
+    for (let i = 0; i < buttons.length; i += 5) {
+        rows.push(new ActionRowBuilder().addComponents(...buttons.slice(i, i + 5)));
+    }
+    return rows;
 }
 
 function buildSelectMenu(currentId, mode = 'buy') {
@@ -267,8 +252,8 @@ function buildPage(pageId, user, mode = 'buy') {
         .addActionRowComponents(buildSelectMenu(pageId, mode))
         .addActionRowComponents(buildModeMenu(pageId, mode));
 
-    const actionRow = pageId ? buildActionRow(pageId, user, mode) : null;
-    if (actionRow) container.addActionRowComponents(actionRow);
+    const actionRows = pageId ? buildActionRows(pageId, user, mode) : [];
+    for (const row of actionRows) container.addActionRowComponents(row);
 
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
