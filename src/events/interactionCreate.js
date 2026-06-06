@@ -4,7 +4,7 @@ const Slave = require('../models/slave');
 const { getUser } = require('../utils/economy');
 const { formatNumber } = require('../utils/format');
 const { handleCast, handleReel, handleCut, handleSell, handleBucket, handleBack } = require('../commands/fish/handlers');
-const { handlePage } = require('../commands/shop/browse');
+const { handlePage, handleShopBuy, handleShopSell } = require('../commands/shop/browse');
 
 module.exports = {
     name: 'interactionCreate',
@@ -17,7 +17,9 @@ module.exports = {
         if (interaction.isButton()) {
             const guildId = interaction.guild.id;
 
-            if (interaction.customId.startsWith('shop_page:'))            return handlePage(interaction);
+            if (interaction.customId.startsWith('shop_page:'))             return handlePage(interaction);
+            if (interaction.customId.startsWith('shop_buy:'))              return handleShopBuy(interaction);
+            if (interaction.customId.startsWith('shop_sell:'))             return handleShopSell(interaction);
             if (interaction.customId.startsWith('fish_cast:'))            return handleCast(interaction);
             if (interaction.customId.startsWith('fish_reel:'))          return handleReel(interaction);
             if (interaction.customId.startsWith('fish_cut:'))           return handleCut(interaction);
