@@ -7,11 +7,11 @@ best economy bot with the best bugs fr fr
 
 # 🏆 Hall of Fame 🏆
 ## 🔨 Developers
-- RVEPRTY
+- [RVEPRTY](https://github.com/luisofficialbusiness-afk)
 - [Bubbo](https://github.com/xbubbo)
 ## ⚒️ Contributors
 - [Bubbo](https://github.com/xbubbo)
 ## 💻 Beta Tester
-- vorg
+- vorg (UBG Creator Hub)
 ## 🤝  Partners
 None
