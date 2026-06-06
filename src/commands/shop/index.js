@@ -3,12 +3,12 @@ const { getUser } = require('../../utils/economy');
 const browse                                               = require('./browse');
 const buy                                                  = require('./buy');
 const sell                                                 = require('./sell');
-const { handleShopSelect, handleShopBuy, handleShopSell }  = browse;
+const { handleShopSelect, handleShopMode, handleShopBuy, handleShopSell }  = browse;
 
 const SUBS = { browse, buy, sell };
 
 module.exports = {
-    handleShopSelect, handleShopBuy, handleShopSell,
+    handleShopSelect, handleShopMode, handleShopBuy, handleShopSell,
 
     data: new SlashCommandBuilder()
         .setName('shop')

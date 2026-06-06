@@ -4,7 +4,7 @@ const Slave = require('../models/slave');
 const { getUser } = require('../utils/economy');
 const { formatNumber } = require('../utils/format');
 const { handleCast, handleReel, handleCut, handleSell, handleBucket, handleBack } = require('../commands/fish/handlers');
-const { handleShopSelect, handleShopBuy, handleShopSell } = require('../commands/shop/browse');
+const { handleShopSelect, handleShopMode, handleShopBuy, handleShopSell } = require('../commands/shop/browse');
 
 module.exports = {
     name: 'interactionCreate',
@@ -15,7 +15,8 @@ module.exports = {
         }
 
         if (interaction.isStringSelectMenu()) {
-            if (interaction.customId === 'shop_select') return handleShopSelect(interaction);
+            if (interaction.customId.startsWith('shop_select'))  return handleShopSelect(interaction);
+            if (interaction.customId.startsWith('shop_mode:'))   return handleShopMode(interaction);
         }
 
         if (interaction.isButton()) {

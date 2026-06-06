@@ -85,6 +85,29 @@ function itemLine(key, user) {
     return `${item.emoji} **${item.name}**${badge}  ·  ${price}\n${item.description}${extraLine}`;
 }
 
+function itemLineForMode(key, user, mode = 'buy') {
+    const item = ITEMS[key];
+    if (!item) return null;
+
+    const qty    = user.inventory?.find(i => i.item === key)?.quantity ?? 0;
+    const locked = !!(item.requires && !hasItem(user, item.requires));
+    const displayPrice = mode === 'sell' ? Math.floor(item.price * SELL_RATE) : item.price;
+    const price = `$${formatNumber(displayPrice)}${item.consumable ? ' each' : ''}`;
+
+    let extraLine = '';
+    if (locked && item.requires) {
+        extraLine = `\n*Requires: ${ITEMS[item.requires]?.name ?? item.requires}*`;
+    } else if (qty > 0 && !item.consumable) {
+        if (PICKAXE_TIERS.includes(key) && isActiveInChain(key, user, PICKAXE_TIERS)) {
+            extraLine = `\n-# ${user.pickaxeDurability ?? 0} sessions remaining`;
+        } else if (ROD_TIERS.includes(key) && isActiveInChain(key, user, ROD_TIERS)) {
+            extraLine = `\n-# ${user.fishRodDurability ?? 0} casts remaining`;
+        }
+    }
+
+    return `${item.emoji} **${item.name}** (${formatNumber(qty)})${locked ? ' 🔒' : ''}  ·  ${price}\n${item.description}${extraLine}`;
+}
+
 function buildEquipmentBody(user) {
     const sections = [];
 
@@ -141,7 +164,7 @@ function buildEquipmentBody(user) {
         : `*You don't own any equipment yet.\nBrowse the categories above to get started.*`;
 }
 
-function buildActionRow(pageId, user) {
+function buildActionRow(pageId, user, mode = 'buy') {
     const page = PAGES[pageId];
     if (!page?.keys) return null;
 
@@ -162,6 +185,14 @@ function buildActionRow(pageId, user) {
                     .setLabel(`Buy ${item.name}`)
                     .setStyle(ButtonStyle.Success)
             );
+            if (qty > 0) {
+                sellButtons.push(
+                    new ButtonBuilder()
+                        .setCustomId(`shop_sell:${key}:${pageId}`)
+                        .setLabel(`Sell ${item.name}`)
+                        .setStyle(ButtonStyle.Danger)
+                );
+            }
         } else if (qty === 0 && !locked) {
             const chainKey = ROD_TIERS.includes(key) ? 'rod' : BUCKET_TIERS.includes(key) ? 'bucket' : PICKAXE_TIERS.includes(key) ? 'pickaxe' : null;
             if (!chainKey || !chainNextAdded[chainKey]) {
@@ -183,14 +214,14 @@ function buildActionRow(pageId, user) {
         }
     }
 
-    const all = [...buyButtons, ...sellButtons].slice(0, 5);
+    const all = (mode === 'sell' ? sellButtons : buyButtons).slice(0, 5);
     return all.length > 0 ? new ActionRowBuilder().addComponents(...all) : null;
 }
 
-function buildSelectMenu(currentId) {
+function buildSelectMenu(currentId, mode = 'buy') {
     return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
-            .setCustomId('shop_select')
+            .setCustomId(`shop_select:${mode}`)
             .setPlaceholder('Select a category...')
             .addOptions(
                 Object.entries(PAGES).map(([id, page]) => ({
@@ -203,7 +234,19 @@ function buildSelectMenu(currentId) {
     );
 }
 
-function buildPage(pageId, user) {
+function buildModeMenu(pageId, mode = 'buy') {
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`shop_mode:${pageId ?? 'none'}`)
+            .setPlaceholder('Select shop mode...')
+            .addOptions(
+                { label: 'Buy',  value: 'buy',  description: 'Show buy buttons',  default: mode === 'buy' },
+                { label: 'Sell', value: 'sell', description: 'Show sell buttons', default: mode === 'sell' },
+            )
+    );
+}
+
+function buildPage(pageId, user, mode = 'buy') {
     const page = pageId ? PAGES[pageId] : null;
 
     let body;
@@ -212,7 +255,7 @@ function buildPage(pageId, user) {
     } else if (!page.keys) {
         body = buildEquipmentBody(user);
     } else {
-        body = page.keys.map(k => itemLine(k, user)).filter(Boolean).join('\n\n');
+        body = page.keys.map(k => itemLineForMode(k, user, mode)).filter(Boolean).join('\n\n');
     }
 
     const container = new ContainerBuilder()
@@ -221,24 +264,36 @@ function buildPage(pageId, user) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
         .addSeparatorComponents(new SeparatorBuilder())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# /buy <item>  ·  ?buy <item>  ·  /sell <item>  ·  ?sell <item>`))
-        .addActionRowComponents(buildSelectMenu(pageId));
+        .addActionRowComponents(buildSelectMenu(pageId, mode))
+        .addActionRowComponents(buildModeMenu(pageId, mode));
 
-    const actionRow = pageId ? buildActionRow(pageId, user) : null;
+    const actionRow = pageId ? buildActionRow(pageId, user, mode) : null;
     if (actionRow) container.addActionRowComponents(actionRow);
 
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
 
 async function execute(interaction, user) {
-    return interaction.reply(buildPage(null, user));
+    return interaction.reply(buildPage(null, user, 'buy'));
 }
 
 async function handleShopSelect(interaction) {
     await interaction.deferUpdate();
+    const [, modeRaw = 'buy'] = interaction.customId.split(':');
+    const mode = modeRaw === 'sell' ? 'sell' : 'buy';
     const pageId = interaction.values?.[0];
     if (!PAGES[pageId]) return;
     const user = await getUser(interaction.user.id, interaction.guild.id);
-    await interaction.message.edit(buildPage(pageId, user));
+    await interaction.message.edit(buildPage(pageId, user, mode));
+}
+
+async function handleShopMode(interaction) {
+    await interaction.deferUpdate();
+    const [, pageIdRaw] = interaction.customId.split(':');
+    const pageId = PAGES[pageIdRaw] ? pageIdRaw : null;
+    const mode = interaction.values?.[0] === 'sell' ? 'sell' : 'buy';
+    const user = await getUser(interaction.user.id, interaction.guild.id);
+    await interaction.message.edit(buildPage(pageId, user, mode));
 }
 
 async function handleShopBuy(interaction) {
@@ -274,7 +329,7 @@ async function handleShopBuy(interaction) {
     if (PICKAXE_TIERS.includes(key) && item.durability) user.pickaxeDurability  = item.durability;
     await user.save();
 
-    await interaction.message.edit(buildPage(PAGES[pageId] ? pageId : null, user));
+    await interaction.message.edit(buildPage(PAGES[pageId] ? pageId : null, user, 'buy'));
 }
 
 async function handleShopSell(interaction) {
@@ -299,8 +354,8 @@ async function handleShopSell(interaction) {
     user.balance    = parseFloat((user.balance + sellPrice).toFixed(2));
     await user.save();
 
-    await interaction.message.edit(buildPage(PAGES[pageId] ? pageId : null, user));
+    await interaction.message.edit(buildPage(PAGES[pageId] ? pageId : null, user, 'sell'));
     await interaction.followUp({ content: `${item.emoji} Sold **${item.name}** for **$${formatNumber(sellPrice)}**.`, ephemeral: true });
 }
 
-module.exports = { execute, handleShopSelect, handleShopBuy, handleShopSell };
+module.exports = { execute, handleShopSelect, handleShopMode, handleShopBuy, handleShopSell };
