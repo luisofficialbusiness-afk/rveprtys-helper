@@ -3,6 +3,8 @@ const fetch = require('node-fetch');
 const Slave = require('../models/slave');
 const { getUser } = require('../utils/economy');
 const { formatNumber } = require('../utils/format');
+const { handleCast, handleReel, handleCut, handleSell, handleBucket, handleBack } = require('../commands/fish/handlers');
+const { handleShopSelect, handleShopMode, handleShopBuy, handleShopSell } = require('../commands/shop/browse');
 
 module.exports = {
     name: 'interactionCreate',
@@ -12,8 +14,22 @@ module.exports = {
             if (command) await command.execute(interaction);
         }
 
+        if (interaction.isStringSelectMenu()) {
+            if (interaction.customId.startsWith('shop_select'))  return handleShopSelect(interaction);
+            if (interaction.customId.startsWith('shop_mode:'))   return handleShopMode(interaction);
+        }
+
         if (interaction.isButton()) {
             const guildId = interaction.guild.id;
+
+            if (interaction.customId.startsWith('shop_buy:'))              return handleShopBuy(interaction);
+            if (interaction.customId.startsWith('shop_sell:'))             return handleShopSell(interaction);
+            if (interaction.customId.startsWith('fish_cast:'))            return handleCast(interaction);
+            if (interaction.customId.startsWith('fish_reel:'))          return handleReel(interaction);
+            if (interaction.customId.startsWith('fish_cut:'))           return handleCut(interaction);
+            if (interaction.customId.startsWith('fish_sell:'))          return handleSell(interaction);
+            if (interaction.customId.startsWith('fish_bucket:'))        return handleBucket(interaction);
+            if (interaction.customId.startsWith('fish_back:'))          return handleBack(interaction);
 
             if (interaction.customId.startsWith('slave_free_')) {
                 const targetId = interaction.customId.split('_')[2];

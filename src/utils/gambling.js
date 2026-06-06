@@ -2,7 +2,6 @@ const CARD_VALS       = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 const SUITS           = ['♠','♥','♦','♣'];
 const SYMBOLS         = ['🍒', '🍋', '🍉', '⭐', '💎', '🍀'];
 const RED_NUMS        = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
-const SCRATCH_SYMBOLS = ['💎', '⭐', '🍀', '💰', '🎯', '❌'];
 
 const HORSES = [
     { name: 'Thunderbolt', emoji: '⚡',  odds: 1.8  },
@@ -57,21 +56,8 @@ function trackWin(user, winnings, bet) {
     user.gamblingWinnings = parseFloat(((user.gamblingWinnings ?? 0) + winnings - bet).toFixed(2));
 }
 
-function applyBoost(user, winnings, text) {
-    if ((user.gamblingBoostExpires ?? 0) > Date.now() && winnings > 0) {
-        winnings = parseFloat((winnings * 1.05).toFixed(2));
-        text    += '\n🛟 *+5% lifesaver boost*';
-    }
-    return { winnings, text };
-}
-
-function refundTimeout(user, bet) {
-    user.balance = parseFloat((user.balance + bet).toFixed(2));
-    return user.save();
-}
-
 module.exports = {
-    CARD_VALS, SUITS, SYMBOLS, RED_NUMS, SCRATCH_SYMBOLS, HORSES,
+    CARD_VALS, SUITS, SYMBOLS, RED_NUMS, HORSES,
     shuffledDeck, cardPoints, handTotal, showHand, cardRank,
-    baccaratVal, baccaratTotal, trackWin, applyBoost, refundTimeout,
+    baccaratVal, baccaratTotal, trackWin,
 };

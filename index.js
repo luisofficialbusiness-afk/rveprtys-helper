@@ -16,28 +16,41 @@ const client = new Client({
 
 client.commands = new Collection();
 
+function resolveCommandPaths() {
+    const paths = [];
+    for (const entry of fs.readdirSync('./src/commands')) {
+        const full = `./src/commands/${entry}`;
+        if (entry.endsWith('.js')) {
+            paths.push(full);
+        } else if (fs.statSync(full).isDirectory() && fs.existsSync(`${full}/index.js`)) {
+            paths.push(`${full}/index.js`);
+        }
+    }
+    return paths;
+}
+
 function loadCommands() {
     client.commands.clear();
-    for (const file of fs.readdirSync('./src/commands').filter(f => f.endsWith('.js'))) {
+    for (const path of resolveCommandPaths()) {
         try {
-            delete require.cache[require.resolve(`./src/commands/${file}`)];
-            const command = require(`./src/commands/${file}`);
-            client.commands.set(command.data.name, command);
+            delete require.cache[require.resolve(path)];
+            const command = require(path);
+            if (command?.data?.name) client.commands.set(command.data.name, command);
         } catch (e) {
-            console.error(`Failed to load ${file}:`, e.message);
+            console.error(`Failed to load ${path}:`, e.message);
         }
     }
 }
 
 async function deployCommands() {
     const commands = [];
-    for (const file of fs.readdirSync('./src/commands').filter(f => f.endsWith('.js'))) {
+    for (const path of resolveCommandPaths()) {
         try {
-            delete require.cache[require.resolve(`./src/commands/${file}`)];
-            const cmd = require(`./src/commands/${file}`);
+            delete require.cache[require.resolve(path)];
+            const cmd = require(path);
             if (cmd?.data?.toJSON) commands.push(cmd.data.toJSON());
         } catch (e) {
-            console.error(`Failed to read ${file}:`, e.message);
+            console.error(`Failed to read ${path}:`, e.message);
         }
     }
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
@@ -67,7 +80,10 @@ for (const file of fs.readdirSync('./src/events').filter(f => f.endsWith('.js'))
     client.on(event.name, (...args) => event.execute(...args, client));
 }
 
-client.once('ready', () => {
+client.on('error', err => console.error('Client error:', err));
+process.on('unhandledRejection', err => console.error('Unhandled rejection:', err));
+
+client.once('clientReady', () => {
     console.log(`Logged in as ${client.user.tag}`);
 
     updatePresence();
@@ -79,8 +95,20 @@ client.once('ready', () => {
     setInterval(async () => {
         const stocks = await Stock.find();
         for (const stock of stocks) {
-            const change   = 1 + (Math.random() * 0.06 - 0.03);
-            const newPrice = Math.max(0.01, parseFloat((stock.price * change).toFixed(2)));
+            // Base move: ±8% per tick
+            let multiplier = 1 + (Math.random() * 0.16 - 0.08);
+
+            // Market event (12% chance): bigger swing
+            const roll = Math.random();
+            if (roll < 0.04) {
+                multiplier *= 1 + (0.15 + Math.random() * 0.25); // spike: +15-40%
+            } else if (roll < 0.08) {
+                multiplier *= 1 - (0.15 + Math.random() * 0.25); // crash: -15-40%
+            } else if (roll < 0.12) {
+                multiplier *= 1 + (Math.random() * 0.30 - 0.15); // wild swing: ±15-30%
+            }
+
+            const newPrice = Math.max(0.01, parseFloat((stock.price * multiplier).toFixed(2)));
             stock.history.push(newPrice);
             if (stock.history.length > 30) stock.history.shift();
             stock.price = newPrice;
