@@ -1,5 +1,7 @@
 const formatNumber = (n) => Math.floor(Number(n)).toLocaleString('en-US');
 
+const stockPrice = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function parseAmount(str, balance) {
     if (!str) return NaN;
     const s = str.toString().toLowerCase().trim();
@@ -14,4 +16,4 @@ function parseAmount(str, balance) {
     return Math.floor(parseFloat(s));
 }
 
-module.exports = { formatNumber, parseAmount };
+module.exports = { formatNumber, stockPrice, parseAmount };
