@@ -35,50 +35,119 @@ const PAGES = {
         description: 'Streaming setup and upgrades',
         keys: ['keyboard_mouse', 'camera', 'ring_light', 'microphone', 'dedicated_server'],
     },
+    equipment: {
+        label: 'Equipment',
+        description: 'Your owned gear and durability',
+        keys: null,
+    },
 };
 
-const PAGE_IDS = Object.keys(PAGES);
+function getHighestOwned(user, tierArr) {
+    for (let i = tierArr.length - 1; i >= 0; i--) {
+        if (hasItem(user, tierArr[i])) return tierArr[i];
+    }
+    return null;
+}
+
+function isActiveInChain(key, user, tierArr) {
+    const idx = tierArr.indexOf(key);
+    if (idx === -1) return false;
+    for (let i = idx + 1; i < tierArr.length; i++) {
+        if (hasItem(user, tierArr[i])) return false;
+    }
+    return true;
+}
 
 function itemLine(key, user) {
     const item = ITEMS[key];
     if (!item) return null;
+
     const qty    = user.inventory?.find(i => i.item === key)?.quantity ?? 0;
     const locked = !!(item.requires && !hasItem(user, item.requires));
 
-    let badge   = '';
-    let reqLine = '';
-
-    if (qty > 0) {
-        badge = item.consumable ? ` ×${qty}` : ' ✅';
-    } else if (locked) {
-        badge   = ' 🔒';
-        reqLine = `*Requires: ${ITEMS[item.requires]?.name ?? item.requires}*\n`;
-    }
+    let badge = '';
+    if (qty > 0)     badge = item.consumable ? ` ×${qty}` : ' ✅';
+    else if (locked) badge = ' 🔒';
 
     const price = `$${formatNumber(item.price)}${item.consumable ? ' each' : ''}`;
-    return `${item.emoji} **${item.name}**${badge} - ${price}\n${reqLine}${item.description}`;
+
+    let extraLine = '';
+    if (locked && item.requires) {
+        extraLine = `\n*Requires: ${ITEMS[item.requires]?.name ?? item.requires}*`;
+    } else if (qty > 0 && !item.consumable) {
+        if (PICKAXE_TIERS.includes(key) && isActiveInChain(key, user, PICKAXE_TIERS)) {
+            extraLine = `\n-# ${user.pickaxeDurability ?? 0} sessions remaining`;
+        } else if (ROD_TIERS.includes(key) && isActiveInChain(key, user, ROD_TIERS)) {
+            extraLine = `\n-# ${user.fishRodDurability ?? 0} casts remaining`;
+        }
+    }
+
+    return `${item.emoji} **${item.name}**${badge}  ·  ${price}\n${item.description}${extraLine}`;
 }
 
-function buildSelectRow(currentId) {
-    return new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-            .setCustomId('shop_select')
-            .setPlaceholder('Browse a category...')
-            .addOptions(PAGE_IDS.map(id => ({
-                label:       PAGES[id].label,
-                value:       id,
-                description: PAGES[id].description,
-                default:     id === currentId,
-            })))
-    );
+function buildEquipmentBody(user) {
+    const sections = [];
+
+    const rodId    = getHighestOwned(user, ROD_TIERS);
+    const bucketId = getHighestOwned(user, BUCKET_TIERS);
+    if (rodId || bucketId) {
+        const lines = [];
+        if (rodId) {
+            const r = ITEMS[rodId];
+            lines.push(`${r.emoji} **${r.name}** ✅  ·  $${formatNumber(r.price)}\n${r.description}\n-# ${user.fishRodDurability ?? 0} casts remaining`);
+        }
+        if (bucketId) {
+            const b = ITEMS[bucketId];
+            lines.push(`${b.emoji} **${b.name}** ✅  ·  $${formatNumber(b.price)}\n${b.description}`);
+        }
+        sections.push(`**🎣 Fishing**\n${lines.join('\n\n')}`);
+    }
+
+    const pickaxeId = getHighestOwned(user, PICKAXE_TIERS);
+    if (pickaxeId || hasItem(user, 'mining_backpack')) {
+        const lines = [];
+        if (pickaxeId) {
+            const p = ITEMS[pickaxeId];
+            lines.push(`${p.emoji} **${p.name}** ✅  ·  $${formatNumber(p.price)}\n${p.description}\n-# ${user.pickaxeDurability ?? 0} sessions remaining`);
+        }
+        if (hasItem(user, 'mining_backpack')) {
+            const bp = ITEMS.mining_backpack;
+            lines.push(`${bp.emoji} **${bp.name}** ✅  ·  $${formatNumber(bp.price)}\n${bp.description}`);
+        }
+        sections.push(`**⛏️ Mining**\n${lines.join('\n\n')}`);
+    }
+
+    const streamOwned = ['keyboard_mouse', 'camera', 'ring_light', 'microphone', 'dedicated_server'].filter(k => hasItem(user, k));
+    if (streamOwned.length > 0) {
+        const lines = streamOwned.map(k => {
+            const s = ITEMS[k];
+            return `${s.emoji} **${s.name}** ✅  ·  $${formatNumber(s.price)}\n${s.description}`;
+        });
+        sections.push(`**📺 Streaming**\n${lines.join('\n\n')}`);
+    }
+
+    const consumOwned = ['lifesaver', 'fishing_bait', 'mining_bomb'].filter(k => hasItem(user, k));
+    if (consumOwned.length > 0) {
+        const lines = consumOwned.map(k => {
+            const c   = ITEMS[k];
+            const qty = user.inventory?.find(i => i.item === k)?.quantity ?? 0;
+            return `${c.emoji} **${c.name}** ×${qty}  ·  $${formatNumber(c.price)} each\n${c.description}`;
+        });
+        sections.push(`**🎒 Consumables**\n${lines.join('\n\n')}`);
+    }
+
+    return sections.length > 0
+        ? sections.join('\n\n')
+        : `*You don't own any equipment yet.\nBrowse the categories above to get started.*`;
 }
 
 function buildActionRow(pageId, user) {
     const page = PAGES[pageId];
-    if (!page) return null;
+    if (!page?.keys) return null;
 
     const buyButtons  = [];
     const sellButtons = [];
+    const chainNextAdded = { rod: false, bucket: false, pickaxe: false };
 
     for (const key of page.keys) {
         const item = ITEMS[key];
@@ -94,12 +163,16 @@ function buildActionRow(pageId, user) {
                     .setStyle(ButtonStyle.Success)
             );
         } else if (qty === 0 && !locked) {
-            buyButtons.push(
-                new ButtonBuilder()
-                    .setCustomId(`shop_buy:${key}:${pageId}`)
-                    .setLabel(`Buy ${item.name}`)
-                    .setStyle(ButtonStyle.Primary)
-            );
+            const chainKey = ROD_TIERS.includes(key) ? 'rod' : BUCKET_TIERS.includes(key) ? 'bucket' : PICKAXE_TIERS.includes(key) ? 'pickaxe' : null;
+            if (!chainKey || !chainNextAdded[chainKey]) {
+                buyButtons.push(
+                    new ButtonBuilder()
+                        .setCustomId(`shop_buy:${key}:${pageId}`)
+                        .setLabel(`Buy ${item.name}`)
+                        .setStyle(ButtonStyle.Primary)
+                );
+                if (chainKey) chainNextAdded[chainKey] = true;
+            }
         } else if (qty > 0) {
             sellButtons.push(
                 new ButtonBuilder()
@@ -114,26 +187,50 @@ function buildActionRow(pageId, user) {
     return all.length > 0 ? new ActionRowBuilder().addComponents(...all) : null;
 }
 
+function buildSelectMenu(currentId) {
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId('shop_select')
+            .setPlaceholder('Select a category...')
+            .addOptions(
+                Object.entries(PAGES).map(([id, page]) => ({
+                    label:       page.label,
+                    value:       id,
+                    description: page.description,
+                    default:     id === currentId,
+                }))
+            )
+    );
+}
+
 function buildPage(pageId, user) {
-    const page = PAGES[pageId] ?? PAGES.general;
-    const body = page.keys.map(k => itemLine(k, user)).filter(Boolean).join('\n\n');
+    const page = pageId ? PAGES[pageId] : null;
+
+    let body;
+    if (!page) {
+        body = 'Select a category to browse items.';
+    } else if (!page.keys) {
+        body = buildEquipmentBody(user);
+    } else {
+        body = page.keys.map(k => itemLine(k, user)).filter(Boolean).join('\n\n');
+    }
 
     const container = new ContainerBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### 🏪 Shop - ${page.label}`))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent('### 🏪 Shop'))
         .addSeparatorComponents(new SeparatorBuilder())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
         .addSeparatorComponents(new SeparatorBuilder())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# /buy <item>  ·  ?buy <item>  ·  /sell <item>  ·  ?sell <item>`))
-        .addActionRowComponents(buildSelectRow(pageId));
+        .addActionRowComponents(buildSelectMenu(pageId));
 
-    const actionRow = buildActionRow(pageId, user);
+    const actionRow = pageId ? buildActionRow(pageId, user) : null;
     if (actionRow) container.addActionRowComponents(actionRow);
 
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
 
 async function execute(interaction, user) {
-    return interaction.reply(buildPage('general', user));
+    return interaction.reply(buildPage(null, user));
 }
 
 async function handleShopSelect(interaction) {
@@ -177,7 +274,7 @@ async function handleShopBuy(interaction) {
     if (PICKAXE_TIERS.includes(key) && item.durability) user.pickaxeDurability  = item.durability;
     await user.save();
 
-    await interaction.message.edit(buildPage(PAGES[pageId] ? pageId : 'general', user));
+    await interaction.message.edit(buildPage(PAGES[pageId] ? pageId : null, user));
 }
 
 async function handleShopSell(interaction) {
@@ -202,7 +299,7 @@ async function handleShopSell(interaction) {
     user.balance    = parseFloat((user.balance + sellPrice).toFixed(2));
     await user.save();
 
-    await interaction.message.edit(buildPage(PAGES[pageId] ? pageId : 'general', user));
+    await interaction.message.edit(buildPage(PAGES[pageId] ? pageId : null, user));
     await interaction.followUp({ content: `${item.emoji} Sold **${item.name}** for **$${formatNumber(sellPrice)}**.`, ephemeral: true });
 }
 
